@@ -90,6 +90,6 @@ jobs:
           while IFS= read -r t; do
             [ -z "$t" ] && continue
             echo "::group::fuzz $t"
-            cargo +nightly fuzz run --fuzz-dir fuzz "$t" -- -max_total_time=60
+            cargo +nightly fuzz run --fuzz-dir fuzz --target x86_64-unknown-linux-gnu "$t" -- -max_total_time=60
             echo "::endgroup::"
           done <<< "$TARGETS"
