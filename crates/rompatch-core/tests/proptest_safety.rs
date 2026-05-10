@@ -1,5 +1,5 @@
 use proptest::prelude::*;
-use rompatch_core::format::{aps, bps, ips, pmsr, ppf, rup, ups};
+use rompatch_core::format::{aps, bdf, bps, ips, pmsr, ppf, rup, ups};
 
 proptest! {
     #[test]
@@ -48,6 +48,12 @@ proptest! {
     fn rup_no_panic(patch in proptest::collection::vec(any::<u8>(), 0..2048)) {
         let rom = vec![0u8; 256];
         let _ = rup::apply(&patch, &rom);
+    }
+
+    #[test]
+    fn bdf_no_panic(patch in proptest::collection::vec(any::<u8>(), 0..2048)) {
+        let rom = vec![0u8; 256];
+        let _ = bdf::apply(&patch, &rom);
     }
 
     #[test]
