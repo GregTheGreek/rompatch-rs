@@ -24,6 +24,26 @@ VCDIFF/xdelta and ZIP-input are intentionally deferred from v1; see
 [`crates/rompatch-core/src/format/README.md`](crates/rompatch-core/src/format/README.md)
 for context.
 
+## Not in v1 / roadmap
+
+Items deliberately left out of the v1 cut, with the reason. Open to PRs.
+
+| Item                   | Status     | Why                                                                                                   |
+| ---------------------- | ---------- | ----------------------------------------------------------------------------------------------------- |
+| VCDIFF / xdelta        | Deferred   | RomPatcher.js does not ship vendorable test fixtures; without `xdelta3`-cross-checked goldens we cannot verify our parser. Users with `.xdelta` patches can fall back to the upstream `xdelta3` tool. |
+| ZIP-input              | Deferred   | Quality-of-life only - lets `rompatch apply rom.zip patch.bps` work without an `unzip` step first. No format unlock.                                                                                  |
+| Patch creation         | Out of scope | This crate is apply-only by design. Match-finding (BPS), delta search (VCDIFF), and encoder logic are an order of magnitude more work than the apply path and are well-served by existing tools.    |
+| Web / WASM / Node      | Out of scope | RomPatcher.js already covers the browser/Node side. This rewrite targets the CLI.                                                                                                                   |
+| GUI                    | Out of scope | CLI only.                                                                                                                                                                                              |
+| EBP                    | Not applicable | EBP exists in CoilSnake's Python `EBPatcher` but is not part of marcrobledo/RomPatcher.js (the reference we mirror).                                                                                |
+
+Things that would make a good follow-up:
+
+- Tight per-format upper bounds on declared output size (today we use a single 256 MiB cap).
+- ZIP-input support if there's user demand.
+- Coverage gate in CI with a real measured threshold.
+- A real-ROM end-to-end smoke test (run manually / locally for licensing reasons).
+
 ## Quickstart
 
 ```bash
