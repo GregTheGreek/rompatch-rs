@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = ["crates/rompatch-core", "crates/rompatch"]
+exclude = ["fuzz"]
 
 [workspace.package]
 version = "0.1.0"
