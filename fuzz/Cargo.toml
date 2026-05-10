@@ -1,0 +1,82 @@
+[package]
+name = "rompatch-fuzz"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+rompatch-core = { path = "../crates/rompatch-core" }
+
+[[bin]]
+name = "ips"
+path = "fuzz_targets/ips.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "ups"
+path = "fuzz_targets/ups.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "bps"
+path = "fuzz_targets/bps.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "pmsr"
+path = "fuzz_targets/pmsr.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "aps_gba"
+path = "fuzz_targets/aps_gba.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "aps_n64"
+path = "fuzz_targets/aps_n64.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "ppf"
+path = "fuzz_targets/ppf.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "rup"
+path = "fuzz_targets/rup.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "bdf"
+path = "fuzz_targets/bdf.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "dispatch"
+path = "fuzz_targets/dispatch.rs"
+test = false
+doc = false
+bench = false
