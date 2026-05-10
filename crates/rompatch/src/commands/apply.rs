@@ -6,11 +6,7 @@ use rompatch_core::format;
 
 use super::CommandError;
 
-pub fn run(
-    rom_path: &Path,
-    patch_path: &Path,
-    out: Option<PathBuf>,
-) -> Result<(), CommandError> {
+pub fn run(rom_path: &Path, patch_path: &Path, out: Option<PathBuf>) -> Result<(), CommandError> {
     let rom = fs::read(rom_path)?;
     let patch = fs::read(patch_path)?;
 
@@ -31,7 +27,9 @@ pub fn run(
 }
 
 fn default_output_path(rom_path: &Path) -> PathBuf {
-    let stem = rom_path.file_stem().map_or_else(OsString::new, OsString::from);
+    let stem = rom_path
+        .file_stem()
+        .map_or_else(OsString::new, OsString::from);
     let ext = rom_path.extension();
     let mut name = stem;
     name.push(".patched");

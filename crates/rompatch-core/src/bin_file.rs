@@ -87,12 +87,16 @@ impl<'a> BinReader<'a> {
             let chunk = u64::from(byte & 0x7f)
                 .checked_mul(shift)
                 .ok_or(PatchError::InvalidEncoding)?;
-            value = value.checked_add(chunk).ok_or(PatchError::InvalidEncoding)?;
+            value = value
+                .checked_add(chunk)
+                .ok_or(PatchError::InvalidEncoding)?;
             if byte & 0x80 != 0 {
                 break;
             }
             shift = shift.checked_shl(7).ok_or(PatchError::InvalidEncoding)?;
-            value = value.checked_add(shift).ok_or(PatchError::InvalidEncoding)?;
+            value = value
+                .checked_add(shift)
+                .ok_or(PatchError::InvalidEncoding)?;
         }
         Ok(value)
     }
@@ -117,7 +121,16 @@ mod tests {
 
     #[test]
     fn vlv_roundtrips_known_values() {
-        let cases: &[u64] = &[0, 1, 0x7f, 0x80, 0x100, 0x1234, 0xdead_beef, u64::from(u32::MAX)];
+        let cases: &[u64] = &[
+            0,
+            1,
+            0x7f,
+            0x80,
+            0x100,
+            0x1234,
+            0xdead_beef,
+            u64::from(u32::MAX),
+        ];
         for &v in cases {
             let mut buf = Vec::new();
             write_vlv(&mut buf, v);

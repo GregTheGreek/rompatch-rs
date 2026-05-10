@@ -19,7 +19,10 @@ impl fmt::Display for PatchError {
             Self::InvalidMagic => f.write_str("invalid patch magic bytes"),
             Self::InvalidEncoding => f.write_str("invalid patch encoding"),
             Self::InputSizeMismatch { expected, actual } => {
-                write!(f, "input ROM size mismatch: expected {expected}, got {actual}")
+                write!(
+                    f,
+                    "input ROM size mismatch: expected {expected}, got {actual}"
+                )
             }
             Self::InputHashMismatch { expected, actual } => write!(
                 f,
