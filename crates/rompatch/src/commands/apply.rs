@@ -2,7 +2,7 @@ use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use rompatch_core::{checksum_fix, format, hash, header};
+use rompatch_core::{checksum_fix, format, hash, header, FormatKind};
 
 use super::CommandError;
 
@@ -14,6 +14,37 @@ pub struct Args<'a> {
     pub fix_checksum: bool,
     pub verify_input: Option<String>,
     pub verify_output: Option<String>,
+    pub format_override: Option<String>,
+}
+
+fn parse_format(name: &str) -> Option<FormatKind> {
+    match name.to_ascii_lowercase().as_str() {
+        "ips" => Some(FormatKind::Ips),
+        "ups" => Some(FormatKind::Ups),
+        "bps" => Some(FormatKind::Bps),
+        "pmsr" => Some(FormatKind::Pmsr),
+        "aps-gba" | "aps_gba" | "apsgba" => Some(FormatKind::ApsGba),
+        "aps-n64" | "aps_n64" | "apsn64" => Some(FormatKind::ApsN64),
+        "ppf" => Some(FormatKind::Ppf),
+        "rup" => Some(FormatKind::Rup),
+        "bdf" | "bsdiff" => Some(FormatKind::Bdf),
+        _ => None,
+    }
+}
+
+fn apply_with_kind(kind: FormatKind, patch: &[u8], rom: &[u8]) -> Result<Vec<u8>, CommandError> {
+    let bytes = match kind {
+        FormatKind::Ips => format::ips::apply(patch, rom)?,
+        FormatKind::Ups => format::ups::apply(patch, rom)?,
+        FormatKind::Bps => format::bps::apply(patch, rom)?,
+        FormatKind::Pmsr => format::pmsr::apply(patch, rom)?,
+        FormatKind::ApsGba => format::aps::apply_gba(patch, rom)?,
+        FormatKind::ApsN64 => format::aps::apply_n64(patch, rom)?,
+        FormatKind::Ppf => format::ppf::apply(patch, rom)?,
+        FormatKind::Rup => format::rup::apply(patch, rom)?,
+        FormatKind::Bdf => format::bdf::apply(patch, rom)?,
+    };
+    Ok(bytes)
 }
 
 pub fn run(args: Args<'_>) -> Result<(), CommandError> {
@@ -37,8 +68,12 @@ pub fn run(args: Args<'_>) -> Result<(), CommandError> {
         verify_hash(&body, spec, "input")?;
     }
 
-    let kind = format::detect(&patch).ok_or(CommandError::UnknownFormat)?;
-    let mut output = format::apply(&patch, &body)?;
+    let kind = if let Some(name) = &args.format_override {
+        parse_format(name).ok_or_else(|| CommandError::UnknownFormatName(name.clone()))?
+    } else {
+        format::detect(&patch).ok_or(CommandError::UnknownFormat)?
+    };
+    let mut output = apply_with_kind(kind, &patch, &body)?;
 
     if args.fix_checksum {
         if let Some(name) = checksum_fix_for(&mut output) {
@@ -100,15 +135,9 @@ fn verify_hash(bytes: &[u8], spec: &str, kind: &'static str) -> Result<(), Comma
     let expected_norm = expected.trim().to_ascii_lowercase();
     let actual = match algo.to_ascii_lowercase().as_str() {
         "crc32" => format!("{:08x}", hash::crc32(bytes)),
-        "md5" => {
-            use core::fmt::Write;
-            let digest = hash::md5(bytes);
-            let mut s = String::with_capacity(32);
-            for b in digest {
-                let _ = write!(&mut s, "{b:02x}");
-            }
-            s
-        }
+        "md5" => hash::hex(&hash::md5(bytes)),
+        "sha1" => hash::hex(&hash::sha1(bytes)),
+        "adler32" => format!("{:08x}", hash::adler32(bytes)),
         other => return Err(CommandError::InvalidHashSpec(other.to_string())),
     };
     if actual != expected_norm {

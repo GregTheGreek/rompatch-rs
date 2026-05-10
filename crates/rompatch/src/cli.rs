@@ -13,9 +13,17 @@ pub enum Command {
         fix_checksum: bool,
         verify_input: Option<String>,
         verify_output: Option<String>,
+        format_override: Option<String>,
     },
     Detect {
         patch: PathBuf,
+    },
+    Info {
+        patch: PathBuf,
+    },
+    Hash {
+        file: PathBuf,
+        algo: String,
     },
 }
 
@@ -58,6 +66,8 @@ pub fn parse() -> Result<Command, CliError> {
     match sub.as_str() {
         "apply" => parse_apply(parser),
         "detect" => parse_detect(parser),
+        "info" => parse_info(parser),
+        "hash" => parse_hash(parser),
         other => Err(CliError::UnknownSubcommand(other.to_string())),
     }
 }
@@ -70,6 +80,7 @@ fn parse_apply(mut p: lexopt::Parser) -> Result<Command, CliError> {
     let mut fix_checksum = false;
     let mut verify_input: Option<String> = None;
     let mut verify_output: Option<String> = None;
+    let mut format_override: Option<String> = None;
     while let Some(arg) = p.next()? {
         match arg {
             Short('o') | Long("output") => out = Some(PathBuf::from(p.value()?)),
@@ -89,6 +100,13 @@ fn parse_apply(mut p: lexopt::Parser) -> Result<Command, CliError> {
                         .map_err(lexopt::Error::NonUnicodeValue)?,
                 );
             }
+            Long("format") => {
+                format_override = Some(
+                    p.value()?
+                        .into_string()
+                        .map_err(lexopt::Error::NonUnicodeValue)?,
+                );
+            }
             Long("help") | Short('h') => return Err(CliError::Help),
             Value(v) if rom.is_none() => rom = Some(PathBuf::from(v)),
             Value(v) if patch.is_none() => patch = Some(PathBuf::from(v)),
@@ -103,6 +121,7 @@ fn parse_apply(mut p: lexopt::Parser) -> Result<Command, CliError> {
         fix_checksum,
         verify_input,
         verify_output,
+        format_override,
     })
 }
 
@@ -114,4 +133,37 @@ fn parse_detect(mut p: lexopt::Parser) -> Result<Command, CliError> {
         None => return Err(CliError::MissingPositional("patch")),
     };
     Ok(Command::Detect { patch })
+}
+
+fn parse_info(mut p: lexopt::Parser) -> Result<Command, CliError> {
+    let patch = match p.next()? {
+        Some(Value(v)) => PathBuf::from(v),
+        Some(Long("help") | Short('h')) => return Err(CliError::Help),
+        Some(other) => return Err(other.unexpected().into()),
+        None => return Err(CliError::MissingPositional("patch")),
+    };
+    Ok(Command::Info { patch })
+}
+
+fn parse_hash(mut p: lexopt::Parser) -> Result<Command, CliError> {
+    let mut file: Option<PathBuf> = None;
+    let mut algo: Option<String> = None;
+    while let Some(arg) = p.next()? {
+        match arg {
+            Long("algo") => {
+                algo = Some(
+                    p.value()?
+                        .into_string()
+                        .map_err(lexopt::Error::NonUnicodeValue)?,
+                );
+            }
+            Long("help") | Short('h') => return Err(CliError::Help),
+            Value(v) if file.is_none() => file = Some(PathBuf::from(v)),
+            other => return Err(other.unexpected().into()),
+        }
+    }
+    Ok(Command::Hash {
+        file: file.ok_or(CliError::MissingPositional("file"))?,
+        algo: algo.unwrap_or_else(|| "crc32".to_string()),
+    })
 }
