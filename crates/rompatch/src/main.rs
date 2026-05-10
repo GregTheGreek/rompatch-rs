@@ -36,11 +36,24 @@ USAGE:
     rompatch <COMMAND> [args]
 
 COMMANDS:
-    apply <ROM> <PATCH> [-o OUT]    Apply PATCH to ROM, write to OUT
-    detect <PATCH>                   Print the detected patch format
+    apply <ROM> <PATCH> [OPTIONS]    Apply PATCH to ROM
+    detect <PATCH>                    Print the detected patch format
 
-OPTIONS:
-    -h, --help                       Print help
-    -V, --version                    Print version"
+APPLY OPTIONS:
+    -o, --output <PATH>               Output path (default <rom>.patched.<ext>)
+        --strip-header                Detect+strip an SMC/iNES/FDS/LYNX header
+                                      before patching; reattach on write
+        --fix-checksum                Recompute Game Boy or Mega Drive header
+                                      checksum after patching
+        --verify-input  <ALGO:HEX>    Check input ROM hash before patching
+        --verify-output <ALGO:HEX>    Check output ROM hash after patching
+                                      (algo: crc32 or md5)
+
+GENERAL OPTIONS:
+    -h, --help                        Print help
+    -V, --version                     Print version
+
+SUPPORTED FORMATS:
+    IPS, UPS, BPS, PMSR, APS (GBA + N64), PPF (v1/v2/v3), RUP"
     );
 }
