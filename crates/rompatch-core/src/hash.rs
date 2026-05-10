@@ -24,7 +24,7 @@ pub fn sha1(data: &[u8]) -> [u8; 20] {
 
 #[must_use]
 pub fn adler32(data: &[u8]) -> u32 {
-    let mut hasher = adler::Adler32::new();
+    let mut hasher = adler2::Adler32::new();
     hasher.write_slice(data);
     hasher.checksum()
 }

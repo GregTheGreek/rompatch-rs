@@ -18,6 +18,7 @@ use bzip2_rs::DecoderReader;
 
 use crate::bin_file::BinReader;
 use crate::error::{PatchError, Result};
+use crate::MAX_PATCH_OUTPUT_SIZE;
 
 const MAGIC: &[u8] = b"BSDIFF40";
 const HEADER_LEN: usize = 32;
@@ -53,6 +54,12 @@ pub fn apply(patch: &[u8], rom: &[u8]) -> Result<Vec<u8>> {
         offset: target_signed as u64,
         max: usize::MAX as u64,
     })?;
+    if target_size > MAX_PATCH_OUTPUT_SIZE {
+        return Err(PatchError::OutputTooLarge {
+            declared: target_size as u64,
+            max: MAX_PATCH_OUTPUT_SIZE as u64,
+        });
+    }
 
     let ctrl_end = HEADER_LEN
         .checked_add(ctrl_compressed_len)

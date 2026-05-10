@@ -96,6 +96,12 @@ pub fn apply(patch: &[u8], rom: &[u8]) -> Result<Vec<u8>> {
                 offset: offset as u64,
                 max: u64::MAX,
             })?;
+        if end > crate::MAX_PATCH_OUTPUT_SIZE {
+            return Err(PatchError::OutputTooLarge {
+                declared: end as u64,
+                max: crate::MAX_PATCH_OUTPUT_SIZE as u64,
+            });
+        }
         if end > output.len() {
             output.resize(end, 0);
         }
