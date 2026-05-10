@@ -42,7 +42,6 @@ Things that would make a good follow-up:
 - Tight per-format upper bounds on declared output size (today we use a single 256 MiB cap).
 - ZIP-input support if there's user demand.
 - Coverage gate in CI with a real measured threshold.
-- A real-ROM end-to-end smoke test (run manually / locally for licensing reasons).
 
 ## Quickstart
 
