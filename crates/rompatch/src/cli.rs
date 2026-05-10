@@ -9,6 +9,10 @@ pub enum Command {
         rom: PathBuf,
         patch: PathBuf,
         out: Option<PathBuf>,
+        strip_header: bool,
+        fix_checksum: bool,
+        verify_input: Option<String>,
+        verify_output: Option<String>,
     },
     Detect {
         patch: PathBuf,
@@ -62,9 +66,29 @@ fn parse_apply(mut p: lexopt::Parser) -> Result<Command, CliError> {
     let mut rom: Option<PathBuf> = None;
     let mut patch: Option<PathBuf> = None;
     let mut out: Option<PathBuf> = None;
+    let mut strip_header = false;
+    let mut fix_checksum = false;
+    let mut verify_input: Option<String> = None;
+    let mut verify_output: Option<String> = None;
     while let Some(arg) = p.next()? {
         match arg {
             Short('o') | Long("output") => out = Some(PathBuf::from(p.value()?)),
+            Long("strip-header") => strip_header = true,
+            Long("fix-checksum") => fix_checksum = true,
+            Long("verify-input") => {
+                verify_input = Some(
+                    p.value()?
+                        .into_string()
+                        .map_err(lexopt::Error::NonUnicodeValue)?,
+                );
+            }
+            Long("verify-output") => {
+                verify_output = Some(
+                    p.value()?
+                        .into_string()
+                        .map_err(lexopt::Error::NonUnicodeValue)?,
+                );
+            }
             Long("help") | Short('h') => return Err(CliError::Help),
             Value(v) if rom.is_none() => rom = Some(PathBuf::from(v)),
             Value(v) if patch.is_none() => patch = Some(PathBuf::from(v)),
@@ -75,6 +99,10 @@ fn parse_apply(mut p: lexopt::Parser) -> Result<Command, CliError> {
         rom: rom.ok_or(CliError::MissingPositional("rom"))?,
         patch: patch.ok_or(CliError::MissingPositional("patch"))?,
         out,
+        strip_header,
+        fix_checksum,
+        verify_input,
+        verify_output,
     })
 }
 

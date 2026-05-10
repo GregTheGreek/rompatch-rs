@@ -8,6 +8,7 @@ description = "Pure-Rust ROM patch parser and applier"
 
 [dependencies]
 crc32fast = "1.4"
+md-5 = "0.10"
 
 [dev-dependencies]
 proptest = "1"

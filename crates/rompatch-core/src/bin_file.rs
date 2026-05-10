@@ -68,6 +68,23 @@ impl<'a> BinReader<'a> {
         Ok(u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
     }
 
+    pub fn read_u32_be(&mut self) -> Result<u32> {
+        let b = self.read_bytes(4)?;
+        Ok(u32::from_be_bytes([b[0], b[1], b[2], b[3]]))
+    }
+
+    pub fn read_u16_le(&mut self) -> Result<u16> {
+        let b = self.read_bytes(2)?;
+        Ok(u16::from_le_bytes([b[0], b[1]]))
+    }
+
+    pub fn read_u64_le(&mut self) -> Result<u64> {
+        let b = self.read_bytes(8)?;
+        Ok(u64::from_le_bytes([
+            b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7],
+        ]))
+    }
+
     pub fn read_bytes(&mut self, n: usize) -> Result<&'a [u8]> {
         let end = self.pos.checked_add(n).ok_or(PatchError::Truncated)?;
         if end > self.buf.len() {
@@ -87,12 +104,16 @@ impl<'a> BinReader<'a> {
             let chunk = u64::from(byte & 0x7f)
                 .checked_mul(shift)
                 .ok_or(PatchError::InvalidEncoding)?;
-            value = value.checked_add(chunk).ok_or(PatchError::InvalidEncoding)?;
+            value = value
+                .checked_add(chunk)
+                .ok_or(PatchError::InvalidEncoding)?;
             if byte & 0x80 != 0 {
                 break;
             }
             shift = shift.checked_shl(7).ok_or(PatchError::InvalidEncoding)?;
-            value = value.checked_add(shift).ok_or(PatchError::InvalidEncoding)?;
+            value = value
+                .checked_add(shift)
+                .ok_or(PatchError::InvalidEncoding)?;
         }
         Ok(value)
     }
@@ -117,7 +138,16 @@ mod tests {
 
     #[test]
     fn vlv_roundtrips_known_values() {
-        let cases: &[u64] = &[0, 1, 0x7f, 0x80, 0x100, 0x1234, 0xdead_beef, u64::from(u32::MAX)];
+        let cases: &[u64] = &[
+            0,
+            1,
+            0x7f,
+            0x80,
+            0x100,
+            0x1234,
+            0xdead_beef,
+            u64::from(u32::MAX),
+        ];
         for &v in cases {
             let mut buf = Vec::new();
             write_vlv(&mut buf, v);

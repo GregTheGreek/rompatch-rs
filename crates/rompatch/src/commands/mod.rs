@@ -7,7 +7,23 @@ pub mod detect;
 
 pub fn dispatch(cmd: Command) -> Result<(), CommandError> {
     match cmd {
-        Command::Apply { rom, patch, out } => apply::run(&rom, &patch, out),
+        Command::Apply {
+            rom,
+            patch,
+            out,
+            strip_header,
+            fix_checksum,
+            verify_input,
+            verify_output,
+        } => apply::run(apply::Args {
+            rom_path: &rom,
+            patch_path: &patch,
+            out,
+            strip_header,
+            fix_checksum,
+            verify_input,
+            verify_output,
+        }),
         Command::Detect { patch } => detect::run(&patch),
     }
 }
@@ -17,6 +33,12 @@ pub enum CommandError {
     Io(std::io::Error),
     Patch(rompatch_core::PatchError),
     UnknownFormat,
+    HashMismatch {
+        kind: &'static str,
+        expected: String,
+        actual: String,
+    },
+    InvalidHashSpec(String),
 }
 
 impl CommandError {
@@ -24,7 +46,10 @@ impl CommandError {
     pub fn exit_code(&self) -> u8 {
         match self {
             Self::Io(_) => 3,
-            Self::Patch(_) | Self::UnknownFormat => 2,
+            Self::Patch(_)
+            | Self::UnknownFormat
+            | Self::HashMismatch { .. }
+            | Self::InvalidHashSpec(_) => 2,
         }
     }
 }
@@ -35,6 +60,12 @@ impl fmt::Display for CommandError {
             Self::Io(e) => write!(f, "I/O error: {e}"),
             Self::Patch(e) => write!(f, "{e}"),
             Self::UnknownFormat => f.write_str("unknown patch format (no recognized magic bytes)"),
+            Self::HashMismatch {
+                kind,
+                expected,
+                actual,
+            } => write!(f, "{kind} hash mismatch: expected {expected}, got {actual}"),
+            Self::InvalidHashSpec(s) => write!(f, "invalid hash spec: {s}"),
         }
     }
 }

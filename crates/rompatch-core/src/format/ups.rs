@@ -30,10 +30,11 @@ pub fn apply(patch: &[u8], rom: &[u8]) -> Result<Vec<u8>> {
         return Err(PatchError::Truncated);
     }
 
-    let output_size_usize = usize::try_from(output_size).map_err(|_| PatchError::OffsetOutOfRange {
-        offset: output_size,
-        max: usize::MAX as u64,
-    })?;
+    let output_size_usize =
+        usize::try_from(output_size).map_err(|_| PatchError::OffsetOutOfRange {
+            offset: output_size,
+            max: usize::MAX as u64,
+        })?;
 
     let mut output = vec![0u8; output_size_usize];
     let copy_len = rom.len().min(output_size_usize);
@@ -49,9 +50,10 @@ pub fn apply(patch: &[u8], rom: &[u8]) -> Result<Vec<u8>> {
             offset: skip,
             max: output_size,
         })?;
-        pos = pos
-            .checked_add(skip)
-            .ok_or(PatchError::OffsetOutOfRange { offset: 0, max: output_size })?;
+        pos = pos.checked_add(skip).ok_or(PatchError::OffsetOutOfRange {
+            offset: 0,
+            max: output_size,
+        })?;
 
         loop {
             if r.pos() >= body_end {
@@ -59,9 +61,10 @@ pub fn apply(patch: &[u8], rom: &[u8]) -> Result<Vec<u8>> {
             }
             let b = r.read_u8()?;
             if b == 0 {
-                pos = pos
-                    .checked_add(1)
-                    .ok_or(PatchError::OffsetOutOfRange { offset: 0, max: output_size })?;
+                pos = pos.checked_add(1).ok_or(PatchError::OffsetOutOfRange {
+                    offset: 0,
+                    max: output_size,
+                })?;
                 break;
             }
             if pos >= output_size_usize {
