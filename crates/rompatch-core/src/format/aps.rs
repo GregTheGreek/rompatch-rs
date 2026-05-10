@@ -27,6 +27,7 @@
 
 use crate::bin_file::BinReader;
 use crate::error::{PatchError, Result};
+use crate::MAX_PATCH_OUTPUT_SIZE;
 
 const MAGIC_GBA: &[u8] = b"APS1";
 const MAGIC_N64: &[u8] = b"APS10";
@@ -64,6 +65,13 @@ pub fn apply_gba(patch: &[u8], rom: &[u8]) -> Result<Vec<u8>> {
         return Err(PatchError::InputSizeMismatch {
             expected: source_size as u64,
             actual: rom.len() as u64,
+        });
+    }
+
+    if target_size > MAX_PATCH_OUTPUT_SIZE {
+        return Err(PatchError::OutputTooLarge {
+            declared: target_size as u64,
+            max: MAX_PATCH_OUTPUT_SIZE as u64,
         });
     }
 
@@ -147,6 +155,12 @@ pub fn apply_n64(patch: &[u8], rom: &[u8]) -> Result<Vec<u8>> {
     }
 
     let target_size = r.read_u32_le()? as usize;
+    if target_size > MAX_PATCH_OUTPUT_SIZE {
+        return Err(PatchError::OutputTooLarge {
+            declared: target_size as u64,
+            max: MAX_PATCH_OUTPUT_SIZE as u64,
+        });
+    }
     let mut output = vec![0u8; target_size];
     let copy_len = rom.len().min(target_size);
     output[..copy_len].copy_from_slice(&rom[..copy_len]);

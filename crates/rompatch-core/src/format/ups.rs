@@ -1,6 +1,7 @@
 use crate::bin_file::BinReader;
 use crate::error::{PatchError, Result};
 use crate::hash;
+use crate::MAX_PATCH_OUTPUT_SIZE;
 
 const MAGIC: &[u8] = b"UPS1";
 const FOOTER_LEN: usize = 12;
@@ -35,6 +36,12 @@ pub fn apply(patch: &[u8], rom: &[u8]) -> Result<Vec<u8>> {
             offset: output_size,
             max: usize::MAX as u64,
         })?;
+    if output_size_usize > MAX_PATCH_OUTPUT_SIZE {
+        return Err(PatchError::OutputTooLarge {
+            declared: output_size,
+            max: MAX_PATCH_OUTPUT_SIZE as u64,
+        });
+    }
 
     let mut output = vec![0u8; output_size_usize];
     let copy_len = rom.len().min(output_size_usize);

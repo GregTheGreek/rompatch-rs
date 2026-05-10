@@ -20,6 +20,7 @@
 use crate::bin_file::BinReader;
 use crate::error::{PatchError, Result};
 use crate::hash;
+use crate::MAX_PATCH_OUTPUT_SIZE;
 
 const MAGIC: &[u8] = b"NINJA2";
 const HEADER_LEN: usize = 0x800;
@@ -133,6 +134,12 @@ fn apply_file(r: &mut BinReader<'_>, file: &FileHeader, rom: &[u8]) -> Result<Ve
             offset: file.target_size,
             max: usize::MAX as u64,
         })?;
+    if target_size > MAX_PATCH_OUTPUT_SIZE {
+        return Err(PatchError::OutputTooLarge {
+            declared: file.target_size,
+            max: MAX_PATCH_OUTPUT_SIZE as u64,
+        });
+    }
     let source_size =
         usize::try_from(file.source_size).map_err(|_| PatchError::OffsetOutOfRange {
             offset: file.source_size,

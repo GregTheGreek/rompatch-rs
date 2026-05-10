@@ -33,6 +33,10 @@ pub enum PatchError {
         offset: u64,
         max: u64,
     },
+    OutputTooLarge {
+        declared: u64,
+        max: u64,
+    },
     NoMatchingFile,
     UnsupportedFeature(&'static str),
 }
@@ -85,6 +89,10 @@ impl fmt::Display for PatchError {
             Self::OffsetOutOfRange { offset, max } => {
                 write!(f, "patch offset {offset} exceeds limit {max}")
             }
+            Self::OutputTooLarge { declared, max } => write!(
+                f,
+                "patch declares output size {declared} which exceeds the {max}-byte safety cap"
+            ),
             Self::NoMatchingFile => f.write_str("no file in patch matches the input ROM"),
             Self::UnsupportedFeature(name) => write!(f, "unsupported patch feature: {name}"),
         }
