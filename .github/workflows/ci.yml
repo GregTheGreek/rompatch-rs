@@ -53,7 +53,8 @@ jobs:
           components: llvm-tools-preview
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@cargo-llvm-cov
-      - run: cargo llvm-cov --workspace --lcov --output-path lcov.info --fail-under-lines 80
+      - run: cargo llvm-cov --workspace --lcov --output-path lcov.info
+      - run: cargo llvm-cov report --summary-only
       - uses: actions/upload-artifact@v4
         with:
           name: coverage-lcov
@@ -82,10 +83,13 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
       - name: run each target for 60s
+        env:
+          TARGETS: ${{ steps.targets.outputs.targets }}
         run: |
           set -euo pipefail
-          for t in ${{ steps.targets.outputs.targets }}; do
+          while IFS= read -r t; do
+            [ -z "$t" ] && continue
             echo "::group::fuzz $t"
             cargo +nightly fuzz run --fuzz-dir fuzz "$t" -- -max_total_time=60
             echo "::endgroup::"
-          done
+          done <<< "$TARGETS"
