@@ -1,0 +1,16 @@
+[package]
+name = "rompatch-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Pure-Rust ROM patch parser and applier"
+
+[dependencies]
+crc32fast = "1.4"
+
+[dev-dependencies]
+proptest = "1"
+
+[lints]
+workspace = true
