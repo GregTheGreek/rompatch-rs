@@ -68,6 +68,23 @@ impl<'a> BinReader<'a> {
         Ok(u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
     }
 
+    pub fn read_u32_be(&mut self) -> Result<u32> {
+        let b = self.read_bytes(4)?;
+        Ok(u32::from_be_bytes([b[0], b[1], b[2], b[3]]))
+    }
+
+    pub fn read_u16_le(&mut self) -> Result<u16> {
+        let b = self.read_bytes(2)?;
+        Ok(u16::from_le_bytes([b[0], b[1]]))
+    }
+
+    pub fn read_u64_le(&mut self) -> Result<u64> {
+        let b = self.read_bytes(8)?;
+        Ok(u64::from_le_bytes([
+            b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7],
+        ]))
+    }
+
     pub fn read_bytes(&mut self, n: usize) -> Result<&'a [u8]> {
         let end = self.pos.checked_add(n).ok_or(PatchError::Truncated)?;
         if end > self.buf.len() {
