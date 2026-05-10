@@ -1,4 +1,5 @@
 pub mod aps;
+pub mod bdf;
 pub mod bps;
 pub mod ips;
 pub mod pmsr;
@@ -18,6 +19,7 @@ pub enum FormatKind {
     ApsN64,
     Ppf,
     Rup,
+    Bdf,
 }
 
 impl FormatKind {
@@ -32,6 +34,7 @@ impl FormatKind {
             Self::ApsN64 => "APS-N64",
             Self::Ppf => "PPF",
             Self::Rup => "RUP",
+            Self::Bdf => "BDF",
         }
     }
 }
@@ -54,6 +57,8 @@ pub fn detect(patch: &[u8]) -> Option<FormatKind> {
         Some(FormatKind::Ppf)
     } else if patch.starts_with(b"NINJA2") {
         Some(FormatKind::Rup)
+    } else if patch.starts_with(b"BSDIFF40") {
+        Some(FormatKind::Bdf)
     } else {
         None
     }
@@ -69,6 +74,7 @@ pub fn apply(patch: &[u8], rom: &[u8]) -> Result<Vec<u8>> {
         Some(FormatKind::ApsN64) => aps::apply_n64(patch, rom),
         Some(FormatKind::Ppf) => ppf::apply(patch, rom),
         Some(FormatKind::Rup) => rup::apply(patch, rom),
+        Some(FormatKind::Bdf) => bdf::apply(patch, rom),
         None => Err(PatchError::InvalidMagic),
     }
 }
