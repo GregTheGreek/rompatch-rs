@@ -4,6 +4,7 @@ pub mod error;
 pub mod format;
 pub mod hash;
 pub mod header;
+pub mod info;
 
 pub use error::{PatchError, Result};
 pub use format::FormatKind;
