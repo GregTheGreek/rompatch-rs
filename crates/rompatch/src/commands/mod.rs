@@ -4,6 +4,8 @@ use crate::cli::Command;
 
 pub mod apply;
 pub mod detect;
+pub mod hash;
+pub mod info;
 
 pub fn dispatch(cmd: Command) -> Result<(), CommandError> {
     match cmd {
@@ -15,6 +17,7 @@ pub fn dispatch(cmd: Command) -> Result<(), CommandError> {
             fix_checksum,
             verify_input,
             verify_output,
+            format_override,
         } => apply::run(apply::Args {
             rom_path: &rom,
             patch_path: &patch,
@@ -23,8 +26,11 @@ pub fn dispatch(cmd: Command) -> Result<(), CommandError> {
             fix_checksum,
             verify_input,
             verify_output,
+            format_override,
         }),
         Command::Detect { patch } => detect::run(&patch),
+        Command::Info { patch } => info::run(&patch),
+        Command::Hash { file, algo } => hash::run(&file, &algo),
     }
 }
 
@@ -33,6 +39,7 @@ pub enum CommandError {
     Io(std::io::Error),
     Patch(rompatch_core::PatchError),
     UnknownFormat,
+    UnknownFormatName(String),
     HashMismatch {
         kind: &'static str,
         expected: String,
@@ -48,6 +55,7 @@ impl CommandError {
             Self::Io(_) => 3,
             Self::Patch(_)
             | Self::UnknownFormat
+            | Self::UnknownFormatName(_)
             | Self::HashMismatch { .. }
             | Self::InvalidHashSpec(_) => 2,
         }
@@ -60,6 +68,7 @@ impl fmt::Display for CommandError {
             Self::Io(e) => write!(f, "I/O error: {e}"),
             Self::Patch(e) => write!(f, "{e}"),
             Self::UnknownFormat => f.write_str("unknown patch format (no recognized magic bytes)"),
+            Self::UnknownFormatName(name) => write!(f, "unknown --format value: {name}"),
             Self::HashMismatch {
                 kind,
                 expected,
