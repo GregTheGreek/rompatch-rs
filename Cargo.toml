@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/rompatch-core", "crates/rompatch"]
+members = ["crates/rompatch-core", "crates/rompatch", "crates/rompatch-gui"]
 exclude = ["fuzz"]
 
 [workspace.package]

@@ -12,6 +12,7 @@ use crate::format::{self, FormatKind};
 use crate::hash;
 
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PatchInfo {
     pub format: FormatKind,
     pub patch_size: u64,

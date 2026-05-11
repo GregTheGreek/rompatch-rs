@@ -2,6 +2,10 @@
 
 [graph]
 all-features = true
+# Skip the GUI crate's Tauri/WebKit dep graph - it has its own licence
+# posture (~200 transitive crates) that we manage separately from the
+# core library + CLI.
+exclude = ["rompatch-gui"]
 
 [advisories]
 yanked = "deny"
