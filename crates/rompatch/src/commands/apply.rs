@@ -1,4 +1,3 @@
-use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -56,7 +55,7 @@ pub fn run(args: Args<'_>) -> Result<(), CommandError> {
 
     let out_path = args
         .out
-        .unwrap_or_else(|| default_output_path(args.rom_path));
+        .unwrap_or_else(|| apply::default_output_path(args.rom_path));
     fs::write(&out_path, &outcome.output)?;
 
     eprintln!(
@@ -67,20 +66,4 @@ pub fn run(args: Args<'_>) -> Result<(), CommandError> {
         outcome.output.len(),
     );
     Ok(())
-}
-
-fn default_output_path(rom_path: &Path) -> PathBuf {
-    let stem = rom_path
-        .file_stem()
-        .map_or_else(OsString::new, OsString::from);
-    let ext = rom_path.extension();
-    let mut name = stem;
-    name.push(".patched");
-    if let Some(e) = ext {
-        name.push(".");
-        name.push(e);
-    }
-    let mut out = rom_path.to_path_buf();
-    out.set_file_name(name);
-    out
 }

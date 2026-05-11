@@ -6,6 +6,8 @@
 //! read paths, call [`run`], and write the resulting bytes themselves.
 
 use core::fmt;
+use std::ffi::OsString;
+use std::path::{Path, PathBuf};
 
 use crate::checksum_fix::{self, ChecksumFamily};
 use crate::error::PatchError;
@@ -63,7 +65,8 @@ impl HashAlgo {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct HashSpec {
     pub algo: HashAlgo,
-    /// Lowercase hex string. Constructors normalize on the way in.
+    /// Hex digest. Comparisons normalize both sides (trim + ASCII
+    /// lowercase), so callers may pass either case.
     pub expected_hex: String,
 }
 
@@ -232,15 +235,36 @@ fn verify(
     kind: HashCheckKind,
 ) -> core::result::Result<(), ApplyError> {
     let actual = spec.algo.compute_hex(bytes);
-    if actual != spec.expected_hex {
+    let expected = spec.expected_hex.trim().to_ascii_lowercase();
+    if actual != expected {
         return Err(ApplyError::HashMismatch {
             kind,
             algo: spec.algo,
-            expected: spec.expected_hex.clone(),
+            expected,
             actual,
         });
     }
     Ok(())
+}
+
+/// Suggested output path for a ROM + patch operation: `<stem>.patched.<ext>`
+/// next to the input ROM. Shared by the CLI and the Tauri IPC layer so both
+/// suggest the same name.
+#[must_use]
+pub fn default_output_path(rom_path: &Path) -> PathBuf {
+    let stem = rom_path
+        .file_stem()
+        .map_or_else(OsString::new, OsString::from);
+    let ext = rom_path.extension();
+    let mut name = stem;
+    name.push(".patched");
+    if let Some(e) = ext {
+        name.push(".");
+        name.push(e);
+    }
+    let mut out = rom_path.to_path_buf();
+    out.set_file_name(name);
+    out
 }
 
 #[cfg(test)]
@@ -345,5 +369,100 @@ mod tests {
         assert_eq!(FormatKind::from_name("BSDIFF"), Some(FormatKind::Bdf));
         assert_eq!(FormatKind::from_name("aps_gba"), Some(FormatKind::ApsGba));
         assert_eq!(FormatKind::from_name("zzz"), None);
+    }
+
+    #[test]
+    fn verify_input_normalizes_uppercase_expected_hex() {
+        // Construct the HashSpec directly with uppercase hex (the IPC
+        // deserialization path that bypasses `HashSpec::parse`). Verify
+        // should still match against the canonical lowercase digest.
+        let rom = vec![0xAB; 1024];
+        let patch = ips_identity_patch();
+        let crc_upper = format!("{:08X}", hash::crc32(&rom));
+        let opts = ApplyOptions {
+            verify_input: Some(HashSpec {
+                algo: HashAlgo::Crc32,
+                expected_hex: crc_upper,
+            }),
+            ..ApplyOptions::default()
+        };
+        run(&rom, &patch, &opts).unwrap();
+    }
+
+    #[test]
+    fn verify_output_normalizes_uppercase_sha1() {
+        // Same fix on the output path, exercising a non-CRC32 algorithm to
+        // catch any future divergence between the two verify call sites.
+        let rom = vec![0xAB; 1024];
+        let patch = ips_identity_patch();
+        let sha1_upper = hash::hex(&hash::sha1(&rom)).to_ascii_uppercase();
+        let opts = ApplyOptions {
+            verify_output: Some(HashSpec {
+                algo: HashAlgo::Sha1,
+                expected_hex: sha1_upper,
+            }),
+            ..ApplyOptions::default()
+        };
+        run(&rom, &patch, &opts).unwrap();
+    }
+
+    #[test]
+    fn verify_output_mismatch_returns_error() {
+        let rom = vec![0xAB; 1024];
+        let patch = ips_identity_patch();
+        let opts = ApplyOptions {
+            verify_output: Some(HashSpec {
+                algo: HashAlgo::Sha1,
+                expected_hex: "deadbeef".into(),
+            }),
+            ..ApplyOptions::default()
+        };
+        let err = run(&rom, &patch, &opts).unwrap_err();
+        assert!(matches!(
+            err,
+            ApplyError::HashMismatch {
+                kind: HashCheckKind::Output,
+                algo: HashAlgo::Sha1,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn strip_and_reattach_round_trip() {
+        // 32 KiB iNES-headered ROM. Strip + identity-patch + reattach must
+        // produce the exact original bytes.
+        let mut rom = Vec::with_capacity(16 + 32 * 1024);
+        rom.extend_from_slice(b"NES\x1A");
+        rom.extend_from_slice(&[0u8; 12]); // pad to 16-byte iNES header
+        rom.resize(rom.len() + 32 * 1024, 0xAB);
+        let patch = ips_identity_patch();
+        let opts = ApplyOptions {
+            strip_header: true,
+            ..ApplyOptions::default()
+        };
+        let outcome = run(&rom, &patch, &opts).unwrap();
+        assert_eq!(outcome.stripped_header, Some(HeaderKind::INes));
+        assert_eq!(outcome.output, rom);
+    }
+
+    #[test]
+    fn default_output_path_with_extension() {
+        let out = default_output_path(Path::new("/tmp/game.gba"));
+        assert_eq!(out, PathBuf::from("/tmp/game.patched.gba"));
+    }
+
+    #[test]
+    fn default_output_path_without_extension() {
+        let out = default_output_path(Path::new("/tmp/game"));
+        assert_eq!(out, PathBuf::from("/tmp/game.patched"));
+    }
+
+    #[test]
+    fn default_output_path_hidden_file() {
+        // file_stem on ".config" returns ".config" with no extension,
+        // so the suggestion is ".config.patched".
+        let out = default_output_path(Path::new("/tmp/.config"));
+        assert_eq!(out, PathBuf::from("/tmp/.config.patched"));
     }
 }
