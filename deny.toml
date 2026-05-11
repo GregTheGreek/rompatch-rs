@@ -5,7 +5,14 @@ all-features = true
 
 [advisories]
 yanked = "deny"
-ignore = []
+ignore = [
+    # RUSTSEC-2025-0098: the unic-ucd-* crate family is unmaintained.
+    # Pulled in transitively through urlpattern -> tauri-utils -> tauri.
+    # Risk is "unmaintained" only - no known CVE - and the advisory says
+    # "no safe upgrade is available". Re-evaluate when Tauri drops the
+    # urlpattern dep or urlpattern drops the unic-ucd-* deps.
+    "RUSTSEC-2025-0098",
+]
 
 [licenses]
 allow = [
