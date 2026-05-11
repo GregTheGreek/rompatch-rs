@@ -37,15 +37,10 @@ pub fn dispatch(cmd: Command) -> Result<(), CommandError> {
 #[derive(Debug)]
 pub enum CommandError {
     Io(std::io::Error),
+    Apply(rompatch_core::ApplyError),
     Patch(rompatch_core::PatchError),
     UnknownFormat,
-    UnknownFormatName(String),
-    HashMismatch {
-        kind: &'static str,
-        expected: String,
-        actual: String,
-    },
-    InvalidHashSpec(String),
+    InvalidHashAlgo(String),
 }
 
 impl CommandError {
@@ -53,11 +48,7 @@ impl CommandError {
     pub fn exit_code(&self) -> u8 {
         match self {
             Self::Io(_) => 3,
-            Self::Patch(_)
-            | Self::UnknownFormat
-            | Self::UnknownFormatName(_)
-            | Self::HashMismatch { .. }
-            | Self::InvalidHashSpec(_) => 2,
+            Self::Apply(_) | Self::Patch(_) | Self::UnknownFormat | Self::InvalidHashAlgo(_) => 2,
         }
     }
 }
@@ -66,15 +57,10 @@ impl fmt::Display for CommandError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Io(e) => write!(f, "I/O error: {e}"),
+            Self::Apply(e) => write!(f, "{e}"),
             Self::Patch(e) => write!(f, "{e}"),
             Self::UnknownFormat => f.write_str("unknown patch format (no recognized magic bytes)"),
-            Self::UnknownFormatName(name) => write!(f, "unknown --format value: {name}"),
-            Self::HashMismatch {
-                kind,
-                expected,
-                actual,
-            } => write!(f, "{kind} hash mismatch: expected {expected}, got {actual}"),
-            Self::InvalidHashSpec(s) => write!(f, "invalid hash spec: {s}"),
+            Self::InvalidHashAlgo(s) => write!(f, "invalid hash algorithm: {s}"),
         }
     }
 }
@@ -90,5 +76,11 @@ impl From<std::io::Error> for CommandError {
 impl From<rompatch_core::PatchError> for CommandError {
     fn from(e: rompatch_core::PatchError) -> Self {
         Self::Patch(e)
+    }
+}
+
+impl From<rompatch_core::ApplyError> for CommandError {
+    fn from(e: rompatch_core::ApplyError) -> Self {
+        Self::Apply(e)
     }
 }

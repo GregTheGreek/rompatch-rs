@@ -2,6 +2,12 @@
 
 [graph]
 all-features = true
+# Skip the GUI crate's Tauri/WebKit dep graph - it has its own licence
+# posture (~200 transitive crates) that we manage separately from the
+# core library + CLI. Tracked follow-up: audit the full GUI dep tree
+# before the first codesigned/notarized release. File an issue with
+# `gh issue create` and reference it from this comment when opened.
+exclude = ["rompatch-gui"]
 
 [advisories]
 yanked = "deny"

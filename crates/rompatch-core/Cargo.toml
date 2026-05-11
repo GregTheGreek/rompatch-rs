@@ -6,11 +6,20 @@ license.workspace = true
 repository.workspace = true
 description = "Pure-Rust ROM patch parser and applier"
 
+[features]
+default = []
+# Enables `serde::{Serialize, Deserialize}` derives on public types that
+# cross IPC boundaries (FormatKind, HeaderKind, PatchInfo, ApplyOptions,
+# HashSpec, HashAlgo, HashCheckKind, ChecksumFamily). Off by default so
+# the library stays dep-free for CLI/embedded consumers.
+serde = ["dep:serde"]
+
 [dependencies]
 adler2 = "2"
 bzip2-rs = "0.1"
 crc32fast = "1.4"
 md-5 = "0.10"
+serde = { version = "1", features = ["derive"], optional = true }
 sha1 = "0.10"
 
 [dev-dependencies]

@@ -10,6 +10,7 @@ pub mod ups;
 use crate::error::{PatchError, Result};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum FormatKind {
     Ips,
     Ups,
@@ -35,6 +36,41 @@ impl FormatKind {
             Self::Ppf => "PPF",
             Self::Rup => "RUP",
             Self::Bdf => "BDF",
+        }
+    }
+
+    /// Parse a user-facing format name into a [`FormatKind`].
+    ///
+    /// Accepts case-insensitive variants and a few common aliases
+    /// (`aps-gba`/`aps_gba`/`apsgba`, `bsdiff` for `bdf`).
+    #[must_use]
+    pub fn from_name(name: &str) -> Option<Self> {
+        match name.to_ascii_lowercase().as_str() {
+            "ips" => Some(Self::Ips),
+            "ups" => Some(Self::Ups),
+            "bps" => Some(Self::Bps),
+            "pmsr" => Some(Self::Pmsr),
+            "aps-gba" | "aps_gba" | "apsgba" => Some(Self::ApsGba),
+            "aps-n64" | "aps_n64" | "apsn64" => Some(Self::ApsN64),
+            "ppf" => Some(Self::Ppf),
+            "rup" => Some(Self::Rup),
+            "bdf" | "bsdiff" => Some(Self::Bdf),
+            _ => None,
+        }
+    }
+
+    /// Apply a patch of this format to `rom`, returning the patched output.
+    pub fn apply(self, patch: &[u8], rom: &[u8]) -> Result<Vec<u8>> {
+        match self {
+            Self::Ips => ips::apply(patch, rom),
+            Self::Ups => ups::apply(patch, rom),
+            Self::Bps => bps::apply(patch, rom),
+            Self::Pmsr => pmsr::apply(patch, rom),
+            Self::ApsGba => aps::apply_gba(patch, rom),
+            Self::ApsN64 => aps::apply_n64(patch, rom),
+            Self::Ppf => ppf::apply(patch, rom),
+            Self::Rup => rup::apply(patch, rom),
+            Self::Bdf => bdf::apply(patch, rom),
         }
     }
 }
@@ -65,16 +101,7 @@ pub fn detect(patch: &[u8]) -> Option<FormatKind> {
 }
 
 pub fn apply(patch: &[u8], rom: &[u8]) -> Result<Vec<u8>> {
-    match detect(patch) {
-        Some(FormatKind::Ips) => ips::apply(patch, rom),
-        Some(FormatKind::Ups) => ups::apply(patch, rom),
-        Some(FormatKind::Bps) => bps::apply(patch, rom),
-        Some(FormatKind::Pmsr) => pmsr::apply(patch, rom),
-        Some(FormatKind::ApsGba) => aps::apply_gba(patch, rom),
-        Some(FormatKind::ApsN64) => aps::apply_n64(patch, rom),
-        Some(FormatKind::Ppf) => ppf::apply(patch, rom),
-        Some(FormatKind::Rup) => rup::apply(patch, rom),
-        Some(FormatKind::Bdf) => bdf::apply(patch, rom),
-        None => Err(PatchError::InvalidMagic),
-    }
+    detect(patch)
+        .ok_or(PatchError::InvalidMagic)?
+        .apply(patch, rom)
 }

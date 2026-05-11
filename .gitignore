@@ -1,3 +1,11 @@
 /target
 **/*.rs.bk
 .DS_Store
+
+# Frontend
+crates/rompatch-gui/ui/node_modules
+crates/rompatch-gui/ui/dist
+crates/rompatch-gui/ui/.vite
+
+# Tauri build outputs
+crates/rompatch-gui/gen/

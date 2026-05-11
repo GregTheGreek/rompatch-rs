@@ -1,3 +1,4 @@
+pub mod apply;
 pub mod bin_file;
 pub mod checksum_fix;
 pub mod error;
@@ -6,6 +7,8 @@ pub mod hash;
 pub mod header;
 pub mod info;
 
+pub use apply::{ApplyError, ApplyOptions, ApplyOutcome, HashAlgo, HashCheckKind, HashSpec};
+pub use checksum_fix::ChecksumFamily;
 pub use error::{PatchError, Result};
 pub use format::FormatKind;
 pub use header::HeaderKind;

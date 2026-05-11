@@ -1,0 +1,25 @@
+[package]
+name = "rompatch-gui"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Native macOS GUI for rompatch (Tauri shell)"
+
+[lib]
+name = "rompatch_gui_lib"
+crate-type = ["rlib"]
+
+[build-dependencies]
+tauri-build = { version = "=2.6.1", features = [] }
+
+[dependencies]
+rompatch-core = { path = "../rompatch-core", features = ["serde"] }
+serde = { version = "=1.0.228", features = ["derive"] }
+serde_json = "=1.0.149"
+tauri = { version = "=2.11.1", features = [] }
+tauri-plugin-dialog = "=2.7.1"
+thiserror = "=2.0.18"
+
+[lints]
+workspace = true
