@@ -71,9 +71,14 @@ jobs:
           cargo check -p rompatch-gui --release
           cargo clippy -p rompatch-gui --all-targets -- -D warnings
       # On tag pushes, produce a universal-apple-darwin .dmg.
+      # `cargo-binstall` pulls prebuilt tauri-cli binaries instead of
+      # building from source (~3-5 min saved per tagged release).
+      - name: install cargo-binstall
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: cargo-bins/cargo-binstall@aaa84a43aec4955a42c5ffc65d258961e39f276e # v1.19.1
       - name: install tauri-cli
         if: startsWith(github.ref, 'refs/tags/')
-        run: cargo install tauri-cli --version 2.11.1 --locked
+        run: cargo binstall tauri-cli@2.11.1 --no-confirm --locked
       - name: tauri build universal .dmg
         if: startsWith(github.ref, 'refs/tags/')
         working-directory: crates/rompatch-gui
