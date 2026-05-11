@@ -5,14 +5,13 @@ all-features = true
 
 [advisories]
 yanked = "deny"
-ignore = [
-    # RUSTSEC-2025-0098: the unic-ucd-* crate family is unmaintained.
-    # Pulled in transitively through urlpattern -> tauri-utils -> tauri.
-    # Risk is "unmaintained" only - no known CVE - and the advisory says
-    # "no safe upgrade is available". Re-evaluate when Tauri drops the
-    # urlpattern dep or urlpattern drops the unic-ucd-* deps.
-    "RUSTSEC-2025-0098",
-]
+# Only fail "unmaintained" advisories when they hit a workspace-direct
+# dependency. Tauri's tree drags in ~15 unmaintained crates (gtk-rs GTK3
+# bindings, proc-macro-error, unic-*, etc.) that we have no path to
+# fix; flagging each one individually buries real signals. Vulnerabilities
+# and yanked crates are still always fatal.
+unmaintained = "workspace"
+ignore = []
 
 [licenses]
 allow = [
