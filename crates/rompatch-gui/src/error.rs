@@ -15,23 +15,9 @@ pub enum GuiError {
 }
 
 #[derive(Debug, Serialize)]
-pub struct IpcError {
-    pub kind: &'static str,
-    pub message: String,
-}
-
-impl From<GuiError> for IpcError {
-    fn from(e: GuiError) -> Self {
-        let kind = match &e {
-            GuiError::Io(_) => "io",
-            GuiError::Apply(_) => "apply",
-            GuiError::Patch(_) => "patch",
-        };
-        Self {
-            kind,
-            message: e.to_string(),
-        }
-    }
+struct IpcError {
+    kind: &'static str,
+    message: String,
 }
 
 impl serde::Serialize for GuiError {
@@ -39,17 +25,16 @@ impl serde::Serialize for GuiError {
     where
         S: serde::Serializer,
     {
-        IpcError::from(GuiError::clone_for_serialize(self)).serialize(serializer)
-    }
-}
-
-impl GuiError {
-    fn clone_for_serialize(e: &GuiError) -> GuiError {
-        match e {
-            GuiError::Io(err) => GuiError::Io(std::io::Error::new(err.kind(), err.to_string())),
-            GuiError::Apply(err) => GuiError::Apply(err.clone()),
-            GuiError::Patch(err) => GuiError::Patch(err.clone()),
+        let kind = match self {
+            GuiError::Io(_) => "io",
+            GuiError::Apply(_) => "apply",
+            GuiError::Patch(_) => "patch",
+        };
+        IpcError {
+            kind,
+            message: self.to_string(),
         }
+        .serialize(serializer)
     }
 }
 

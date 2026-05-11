@@ -1,9 +1,9 @@
-//! Tauri IPC commands. Each is a thin wrapper that reads file bytes,
-//! delegates to `rompatch_core`, and returns JSON-serializable data.
+//! Tauri IPC commands. Thin wrappers around `rompatch_core` returning
+//! JSON-serializable data.
 //!
-//! Commands receive deserialized values from the Tauri runtime, so taking
-//! `PathBuf` / `ApplyOptions` by value is unavoidable - there's no source
-//! to borrow from.
+//! Paths come from native open/save dialogs and are trusted. Any new
+//! source of external paths (URL handlers, persisted "recents",
+//! drag-and-drop) must add validation before reusing these commands.
 #![allow(clippy::needless_pass_by_value)]
 
 use std::path::PathBuf;
@@ -94,18 +94,5 @@ pub fn apply_patch(
 /// Suggested default output path for the apply UI: `<rom>.patched.<ext>`.
 #[tauri::command]
 pub fn default_output_path(rom_path: PathBuf) -> PathBuf {
-    use std::ffi::OsString;
-    let stem = rom_path
-        .file_stem()
-        .map_or_else(OsString::new, OsString::from);
-    let ext = rom_path.extension();
-    let mut name = stem;
-    name.push(".patched");
-    if let Some(e) = ext {
-        name.push(".");
-        name.push(e);
-    }
-    let mut out = rom_path.clone();
-    out.set_file_name(name);
-    out
+    apply::default_output_path(&rom_path)
 }

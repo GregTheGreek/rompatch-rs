@@ -8,7 +8,7 @@ description = "Native macOS GUI for rompatch (Tauri shell)"
 
 [lib]
 name = "rompatch_gui_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
+crate-type = ["rlib"]
 
 [build-dependencies]
 tauri-build = { version = "=2.6.1", features = [] }

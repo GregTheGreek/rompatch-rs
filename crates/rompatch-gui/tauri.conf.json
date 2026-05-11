@@ -4,10 +4,10 @@
   "version": "0.1.0",
   "identifier": "tech.gregmarkou.rompatch",
   "build": {
-    "beforeDevCommand": "pnpm --dir ui dev",
-    "beforeBuildCommand": "pnpm --dir ui build",
+    "beforeDevCommand": "pnpm dev",
+    "beforeBuildCommand": "pnpm build",
     "devUrl": "http://localhost:1420",
-    "frontendDist": "../rompatch-gui/ui/dist"
+    "frontendDist": "./ui/dist"
   },
   "app": {
     "windows": [
