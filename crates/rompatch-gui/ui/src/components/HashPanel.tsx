@@ -4,6 +4,7 @@ import { Card } from './Card';
 import { FilePicker } from './FilePicker';
 import { useToast } from './Toast';
 import { cn } from '../lib/cn';
+import { formatIpcError } from '../lib/errors';
 import { CheckIcon, CopyIcon } from '../lib/icons';
 import { computeHashes } from '../lib/tauri';
 import { HASH_ALGO_DISPLAY } from '../lib/types';
@@ -27,20 +28,27 @@ export function HashPanel() {
       setReport(null);
       return;
     }
+    let cancelled = false;
     setLoading(true);
     computeHashes(filePath)
-      .then(setReport)
+      .then((v) => {
+        if (!cancelled) setReport(v);
+      })
       .catch((err) => {
+        if (cancelled) return;
         setReport(null);
         toast({
           title: 'Could not hash file',
-          description: String(err && typeof err === 'object' && 'message' in err
-            ? (err as { message: string }).message
-            : err),
+          description: formatIpcError(err),
           variant: 'error',
         });
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [filePath, toast]);
 
   return (

@@ -9,6 +9,7 @@ import { Select } from './Select';
 import { Switch } from './Switch';
 import { useToast } from './Toast';
 import { cn } from '../lib/cn';
+import { formatIpcError } from '../lib/errors';
 import { PlayIcon, ChevronDownIcon } from '../lib/icons';
 import {
   applyPatch,
@@ -68,21 +69,29 @@ export function ApplyPanel() {
   const [running, setRunning] = useState(false);
   const [lastReport, setLastReport] = useState<ApplyReport | null>(null);
 
-  // Auto-detect format on patch selection.
+  // Auto-detect format on patch selection. Cancellation flag prevents
+  // a slow earlier read from clobbering state after the user swaps files.
   useEffect(() => {
     if (!patchPath) {
       setDetectedFormat(null);
       return;
     }
+    let cancelled = false;
     detectPatchFormat(patchPath)
-      .then(setDetectedFormat)
+      .then((v) => {
+        if (!cancelled) setDetectedFormat(v);
+      })
       .catch((err) => {
+        if (cancelled) return;
         toast({
           title: 'Could not read patch',
-          description: String(err),
+          description: formatIpcError(err),
           variant: 'error',
         });
       });
+    return () => {
+      cancelled = true;
+    };
   }, [patchPath, toast]);
 
   // Auto-detect header + suggested output path on ROM selection.
@@ -92,9 +101,35 @@ export function ApplyPanel() {
       setOutPath(null);
       return;
     }
-    detectRomHeader(romPath).then(setDetectedHeader).catch(() => {});
-    defaultOutputPath(romPath).then(setOutPath).catch(() => {});
-  }, [romPath]);
+    let cancelled = false;
+    detectRomHeader(romPath)
+      .then((v) => {
+        if (!cancelled) setDetectedHeader(v);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        toast({
+          title: 'Could not read ROM header',
+          description: formatIpcError(err),
+          variant: 'error',
+        });
+      });
+    defaultOutputPath(romPath)
+      .then((v) => {
+        if (!cancelled) setOutPath(v);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        toast({
+          title: 'Could not compute output path',
+          description: formatIpcError(err),
+          variant: 'error',
+        });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [romPath, toast]);
 
   const canApply = romPath !== null && patchPath !== null && outPath !== null && !running;
 
@@ -330,10 +365,3 @@ function VerifyRow({ title, algo, onAlgoChange, hex, onHexChange }: VerifyRowPro
   );
 }
 
-function formatIpcError(err: unknown): string {
-  if (err && typeof err === 'object' && 'message' in err) {
-    const msg = (err as { message: unknown }).message;
-    if (typeof msg === 'string') return msg;
-  }
-  return String(err);
-}
