@@ -2,12 +2,6 @@
 
 [graph]
 all-features = true
-# Skip the GUI crate's Tauri/WebKit dep graph - it has its own licence
-# posture (~200 transitive crates) that we manage separately from the
-# core library + CLI. Tracked follow-up: audit the full GUI dep tree
-# before the first codesigned/notarized release. File an issue with
-# `gh issue create` and reference it from this comment when opened.
-exclude = ["rompatch-gui"]
 
 [advisories]
 yanked = "deny"
@@ -34,7 +28,14 @@ multiple-versions = "warn"
 wildcards = "deny"
 deny = []
 skip = []
-skip-tree = []
+# Tauri 2 + WebKit pull a wide tree that's slow to converge on dep
+# versions. Skipping those subtrees keeps the duplicate-version warnings
+# from drowning genuine issues; the crates inside still go through the
+# licence + advisory checks.
+skip-tree = [
+    { name = "tauri", version = "=2.11.1" },
+    { name = "tauri-build", version = "=2.6.1" },
+]
 
 [sources]
 unknown-registry = "deny"
