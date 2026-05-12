@@ -1,27 +1,30 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { AdvancedSection } from './AdvancedSection';
+import { ApplyTile } from './ApplyTile';
+import type { ApplyState } from './ApplyTile';
 import { Badge } from './Badge';
-import { Button } from './Button';
-import { Card } from './Card';
-import { FilePicker } from './FilePicker';
-import { Input } from './Input';
-import { Label } from './Label';
-import { Select } from './Select';
-import { Switch } from './Switch';
+import { DropTile } from './DropTile';
 import { useToast } from './Toast';
 import { cn } from '../lib/cn';
 import { formatIpcError } from '../lib/errors';
-import { PlayIcon, ChevronDownIcon } from '../lib/icons';
+import {
+  FolderIcon,
+  PackageIcon,
+  PlusCircleIcon,
+  SaveIcon,
+  SettingsIcon,
+} from '../lib/icons';
 import {
   applyPatch,
   defaultOutputPath,
   detectPatchFormat,
   detectRomHeader,
+  pickDirectory,
 } from '../lib/tauri';
 import {
+  CHECKSUM_FAMILY_DISPLAY,
   FORMAT_DISPLAY,
   HEADER_DISPLAY,
-  HASH_ALGO_DISPLAY,
-  CHECKSUM_FAMILY_DISPLAY,
 } from '../lib/types';
 import type {
   ApplyOptions,
@@ -32,19 +35,21 @@ import type {
   HeaderKind,
 } from '../lib/types';
 
-const ALL_FORMATS: FormatKind[] = [
-  'Ips',
-  'Ups',
-  'Bps',
-  'Pmsr',
-  'ApsGba',
-  'ApsN64',
-  'Ppf',
-  'Rup',
-  'Bdf',
-];
+function basename(path: string): string {
+  const i = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+  return i >= 0 ? path.slice(i + 1) : path;
+}
 
-const ALL_ALGOS: HashAlgo[] = ['Crc32', 'Md5', 'Sha1', 'Adler32'];
+function dirname(path: string): string {
+  const i = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+  return i >= 0 ? path.slice(0, i) : '';
+}
+
+function joinPath(dir: string, name: string): string {
+  if (!dir) return name;
+  const sep = dir.includes('\\') && !dir.includes('/') ? '\\' : '/';
+  return dir.endsWith(sep) ? dir + name : dir + sep + name;
+}
 
 export function ApplyPanel() {
   const { toast } = useToast();
@@ -68,6 +73,16 @@ export function ApplyPanel() {
 
   const [running, setRunning] = useState(false);
   const [lastReport, setLastReport] = useState<ApplyReport | null>(null);
+  const [lastError, setLastError] = useState<string | null>(null);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+
+  // Success state auto-reverts to ready after a few seconds.
+  const successTimer = useRef<number | null>(null);
+  useEffect(() => {
+    return () => {
+      if (successTimer.current !== null) window.clearTimeout(successTimer.current);
+    };
+  }, []);
 
   // Auto-detect format on patch selection. Cancellation flag prevents
   // a slow earlier read from clobbering state after the user swaps files.
@@ -131,7 +146,14 @@ export function ApplyPanel() {
     };
   }, [romPath, toast]);
 
-  const canApply = romPath !== null && patchPath !== null && outPath !== null && !running;
+  const filesReady = romPath !== null && patchPath !== null && outPath !== null;
+
+  let applyState: ApplyState;
+  if (running) applyState = 'running';
+  else if (lastError) applyState = 'error';
+  else if (lastReport) applyState = 'success';
+  else if (filesReady) applyState = 'ready';
+  else applyState = 'empty';
 
   function buildSpec(algo: HashAlgo, hex: string): HashSpec | null {
     const trimmed = hex.trim().toLowerCase();
@@ -140,9 +162,21 @@ export function ApplyPanel() {
   }
 
   async function handleApply() {
-    if (!canApply || !romPath || !patchPath || !outPath) return;
+    // From success or error, a click clears the state and re-arms.
+    if (applyState === 'success' || applyState === 'error') {
+      if (successTimer.current !== null) {
+        window.clearTimeout(successTimer.current);
+        successTimer.current = null;
+      }
+      setLastReport(null);
+      setLastError(null);
+      return;
+    }
+    if (applyState !== 'ready' || !romPath || !patchPath || !outPath) return;
+
     setRunning(true);
     setLastReport(null);
+    setLastError(null);
     const options: ApplyOptions = {
       strip_header: stripHeader,
       fix_checksum: fixChecksum,
@@ -158,8 +192,13 @@ export function ApplyPanel() {
         description: `${FORMAT_DISPLAY[report.format]} — wrote ${report.out_size.toLocaleString()} bytes`,
         variant: 'success',
       });
+      if (successTimer.current !== null) window.clearTimeout(successTimer.current);
+      successTimer.current = window.setTimeout(() => {
+        setLastReport(null);
+      }, 4000);
     } catch (err) {
       const message = formatIpcError(err);
+      setLastError(message);
       toast({
         title: 'Apply failed',
         description: message,
@@ -170,198 +209,257 @@ export function ApplyPanel() {
     }
   }
 
+  async function handleChangeLocation() {
+    if (!outPath) return;
+    try {
+      const picked = await pickDirectory(dirname(outPath), 'Choose save folder');
+      if (picked) setOutPath(joinPath(picked, basename(outPath)));
+    } catch (err) {
+      toast({
+        title: 'Failed to open folder dialog',
+        description: String(err),
+        variant: 'error',
+      });
+    }
+  }
+
+  function handleRename(newName: string) {
+    const trimmed = newName.trim();
+    if (!outPath || !trimmed || trimmed === basename(outPath)) return;
+    setOutPath(joinPath(dirname(outPath), trimmed));
+  }
+
+  const successHeadline = lastReport
+    ? `Wrote ${lastReport.out_size.toLocaleString()} bytes`
+    : undefined;
+
+  const lastReportLine = lastReport
+    ? [
+        FORMAT_DISPLAY[lastReport.format],
+        `${lastReport.out_size.toLocaleString()} bytes`,
+        lastReport.stripped_header && `stripped ${HEADER_DISPLAY[lastReport.stripped_header]}`,
+        lastReport.fixed_checksum && `fixed ${CHECKSUM_FAMILY_DISPLAY[lastReport.fixed_checksum]}`,
+      ]
+        .filter(Boolean)
+        .join(' — ')
+    : null;
+
+  const drawerWidth = '18rem';
+
   return (
-    <div className="flex flex-col gap-4 max-w-2xl mx-auto">
-      <Card title="Input">
-        <div className="flex flex-col gap-4">
-          <FilePicker
-            label="ROM"
-            value={romPath}
-            onChange={setRomPath}
-            dialogTitle="Select ROM file"
-          />
-          <FilePicker
-            label="Patch"
-            value={patchPath}
-            onChange={setPatchPath}
-            dialogTitle="Select patch file"
-          />
-          {(detectedFormat || detectedHeader) && (
-            <div className="flex items-center gap-2 text-xs text-fg-muted">
-              {detectedFormat && (
-                <Badge tone="accent">{FORMAT_DISPLAY[detectedFormat]}</Badge>
-              )}
-              {detectedHeader && (
-                <Badge tone="neutral">{HEADER_DISPLAY[detectedHeader]} header</Badge>
-              )}
-            </div>
-          )}
-          <details className="group">
-            <summary className="flex items-center gap-1.5 cursor-pointer text-xs text-fg-muted hover:text-fg select-none">
-              <ChevronDownIcon
-                size={12}
-                className="transition-transform group-open:rotate-180"
-              />
-              Override detected format
-            </summary>
-            <div className="mt-2">
-              <Select
-                value={formatOverride ?? ''}
-                onChange={(e) =>
-                  setFormatOverride(e.target.value ? (e.target.value as FormatKind) : null)
-                }
-              >
-                <option value="">(auto-detect)</option>
-                {ALL_FORMATS.map((f) => (
-                  <option key={f} value={f}>
-                    {FORMAT_DISPLAY[f]}
-                  </option>
-                ))}
-              </Select>
-            </div>
-          </details>
-        </div>
-      </Card>
-
-      <Card title="Options">
-        <div className="flex flex-col gap-3.5">
-          <OptionRow
-            id="strip-header"
-            label="Strip ROM header"
-            description="Detect SMC/iNES/FDS/LYNX, strip before patching, reattach to output."
-            checked={stripHeader}
-            onCheckedChange={setStripHeader}
-          />
-          <OptionRow
-            id="fix-checksum"
-            label="Fix cartridge checksum"
-            description="Recompute Game Boy or Mega Drive header checksum on the output."
-            checked={fixChecksum}
-            onCheckedChange={setFixChecksum}
-          />
-          <OptionRow
-            id="show-verify"
-            label="Verify hashes"
-            description="Reject mismatched input/output ROMs before writing the file."
-            checked={showVerify}
-            onCheckedChange={setShowVerify}
-          />
-          {showVerify && (
-            <div className="grid grid-cols-1 gap-3 pl-4 border-l-2 border-accent/30 ml-1">
-              <VerifyRow
-                title="Input hash"
-                algo={verifyInputAlgo}
-                onAlgoChange={setVerifyInputAlgo}
-                hex={verifyInputHex}
-                onHexChange={setVerifyInputHex}
-              />
-              <VerifyRow
-                title="Output hash"
-                algo={verifyOutputAlgo}
-                onAlgoChange={setVerifyOutputAlgo}
-                hex={verifyOutputHex}
-                onHexChange={setVerifyOutputHex}
-              />
-            </div>
-          )}
-        </div>
-      </Card>
-
-      <Card title="Output">
-        <FilePicker
-          label="Save to"
-          value={outPath}
-          onChange={setOutPath}
-          mode="save"
-          dialogTitle="Save patched ROM as"
-          defaultSavePath={outPath ?? undefined}
-        />
-      </Card>
-
-      <div className="flex items-center justify-end gap-3 pt-1">
-        {lastReport && (
-          <div className="text-xs text-fg-muted">
-            Last: {FORMAT_DISPLAY[lastReport.format]} -{' '}
-            {lastReport.out_size.toLocaleString()} bytes
-            {lastReport.stripped_header
-              ? ` - stripped ${HEADER_DISPLAY[lastReport.stripped_header]}`
-              : ''}
-            {lastReport.fixed_checksum
-              ? ` - fixed ${CHECKSUM_FAMILY_DISPLAY[lastReport.fixed_checksum]}`
-              : ''}
-          </div>
+    <div className="flex-1 flex relative overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setAdvancedOpen((v) => !v)}
+        aria-expanded={advancedOpen}
+        aria-controls="advanced-section"
+        aria-label={advancedOpen ? 'Hide advanced settings' : 'Show advanced settings'}
+        className={cn(
+          'fixed top-2 right-3 z-20 inline-flex items-center justify-center h-7 w-7 rounded-full',
+          'text-fg-subtle hover:text-fg hover:bg-bg-input/70 transition-colors',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40',
+          advancedOpen && 'text-accent bg-accent-subtle/30',
         )}
-        <Button
-          variant="primary"
-          size="lg"
-          onClick={handleApply}
-          disabled={!canApply}
-          loading={running}
-          leftIcon={<PlayIcon size={14} />}
-        >
-          {running ? 'Applying...' : 'Apply patch'}
-        </Button>
-      </div>
-    </div>
-  );
-}
+      >
+        <SettingsIcon size={14} />
+      </button>
 
-interface OptionRowProps {
-  id: string;
-  label: string;
-  description: string;
-  checked: boolean;
-  onCheckedChange: (checked: boolean) => void;
-}
-
-function OptionRow({ id, label, description, checked, onCheckedChange }: OptionRowProps) {
-  return (
-    <div className={cn('flex items-start justify-between gap-4')}>
-      <div className="flex-1 min-w-0">
-        <label
-          htmlFor={id}
-          className="block text-sm text-fg cursor-pointer select-none"
-        >
-          {label}
-        </label>
-        <p className="text-xs text-fg-muted mt-0.5">{description}</p>
-      </div>
-      <Switch id={id} checked={checked} onCheckedChange={onCheckedChange} />
-    </div>
-  );
-}
-
-interface VerifyRowProps {
-  title: string;
-  algo: HashAlgo;
-  onAlgoChange: (algo: HashAlgo) => void;
-  hex: string;
-  onHexChange: (hex: string) => void;
-}
-
-function VerifyRow({ title, algo, onAlgoChange, hex, onHexChange }: VerifyRowProps) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <Label>{title}</Label>
-      <div className="flex gap-2">
-        <div className="w-32 shrink-0">
-          <Select value={algo} onChange={(e) => onAlgoChange(e.target.value as HashAlgo)}>
-            {ALL_ALGOS.map((a) => (
-              <option key={a} value={a}>
-                {HASH_ALGO_DISPLAY[a]}
-              </option>
-            ))}
-          </Select>
-        </div>
-        <Input
-          value={hex}
-          onChange={(e) => onHexChange(e.target.value)}
-          placeholder="expected hex digest..."
-          monospace
-          spellCheck={false}
+      <main
+        className="flex-1 flex items-center justify-center transition-[padding] duration-200"
+        style={{ paddingRight: advancedOpen ? drawerWidth : 0 }}
+      >
+        <div className="flex flex-col gap-8 max-w-2xl w-full px-6">
+          <div className="flex items-start gap-2 w-full">
+        <DropTile
+          label="ROM"
+          filledLabel="Select ROM"
+          icon={<PlusCircleIcon size={56} strokeWidth={1.5} />}
+          value={romPath}
+          onChange={setRomPath}
+          dialogTitle="Select ROM file"
+          badge={
+            detectedHeader ? (
+              <Badge tone="neutral">{HEADER_DISPLAY[detectedHeader]} header</Badge>
+            ) : null
+          }
+        />
+        <Connector lit={romPath !== null} />
+        <DropTile
+          label="Patch"
+          filledLabel="Select patch"
+          icon={<PackageIcon size={56} strokeWidth={1.5} />}
+          value={patchPath}
+          onChange={setPatchPath}
+          dialogTitle="Select patch file"
+          badge={
+            detectedFormat ? (
+              <Badge tone="accent">{FORMAT_DISPLAY[detectedFormat]}</Badge>
+            ) : null
+          }
+        />
+        <Connector lit={filesReady} />
+        <ApplyTile
+          state={applyState}
+          onApply={handleApply}
+          successMessage={successHeadline}
+          errorMessage={lastError ?? undefined}
         />
       </div>
+
+      <div className="flex items-center gap-2 px-1 text-xs text-fg-muted min-h-[1.5rem]">
+        {outPath ? (
+          <>
+            <SaveIcon size={12} className="shrink-0 text-fg-subtle" />
+            <span className="text-fg-subtle shrink-0">Save to</span>
+            <EditableFilename
+              filename={basename(outPath)}
+              fullPath={outPath}
+              onCommit={handleRename}
+            />
+            <button
+              type="button"
+              onClick={handleChangeLocation}
+              className={cn(
+                'ml-auto inline-flex items-center gap-1.5 h-6 px-2 rounded-md shrink-0',
+                'text-fg-subtle hover:text-fg hover:bg-bg-input/60 transition-colors',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40',
+              )}
+              title={dirname(outPath)}
+            >
+              <FolderIcon size={12} />
+              <span>Change folder</span>
+            </button>
+          </>
+        ) : (
+          <span className="text-fg-subtle mx-auto">Pick a ROM to start.</span>
+        )}
+      </div>
+
+          {lastReportLine && (
+            <div className="px-1 text-[11px] text-fg-subtle font-mono truncate">
+              {lastReportLine}
+            </div>
+          )}
+        </div>
+      </main>
+
+      <aside
+        id="advanced-section"
+        aria-hidden={!advancedOpen}
+        className={cn(
+          'fixed top-0 right-0 bottom-0 border-l border-bg-border bg-bg-raised',
+          'transition-transform duration-200 ease-out z-10',
+          !advancedOpen && 'pointer-events-none',
+        )}
+        style={{
+          width: drawerWidth,
+          transform: advancedOpen ? 'translateX(0)' : 'translateX(100%)',
+        }}
+      >
+        <AdvancedSection
+          formatOverride={formatOverride}
+          onFormatOverrideChange={setFormatOverride}
+          stripHeader={stripHeader}
+          onStripHeaderChange={setStripHeader}
+          fixChecksum={fixChecksum}
+          onFixChecksumChange={setFixChecksum}
+          showVerify={showVerify}
+          onShowVerifyChange={setShowVerify}
+          verifyInputAlgo={verifyInputAlgo}
+          onVerifyInputAlgoChange={setVerifyInputAlgo}
+          verifyInputHex={verifyInputHex}
+          onVerifyInputHexChange={setVerifyInputHex}
+          verifyOutputAlgo={verifyOutputAlgo}
+          onVerifyOutputAlgoChange={setVerifyOutputAlgo}
+          verifyOutputHex={verifyOutputHex}
+          onVerifyOutputHexChange={setVerifyOutputHex}
+        />
+      </aside>
     </div>
   );
 }
 
+interface EditableFilenameProps {
+  filename: string;
+  fullPath: string;
+  onCommit: (newName: string) => void;
+}
+
+function EditableFilename({ filename, fullPath, onCommit }: EditableFilenameProps) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(filename);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!editing) setDraft(filename);
+  }, [filename, editing]);
+
+  useEffect(() => {
+    if (editing && inputRef.current) {
+      inputRef.current.focus();
+      const dot = filename.lastIndexOf('.');
+      inputRef.current.setSelectionRange(0, dot > 0 ? dot : filename.length);
+    }
+  }, [editing, filename]);
+
+  function commit() {
+    setEditing(false);
+    onCommit(draft);
+  }
+  function cancel() {
+    setDraft(filename);
+    setEditing(false);
+  }
+
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            commit();
+          } else if (e.key === 'Escape') {
+            e.preventDefault();
+            cancel();
+          }
+        }}
+        spellCheck={false}
+        className={cn(
+          'min-w-0 flex-1 bg-transparent font-mono text-[12px] text-fg outline-none',
+          'border-b border-accent/60 focus:border-accent px-0.5',
+        )}
+      />
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => setEditing(true)}
+      title={fullPath}
+      className={cn(
+        'min-w-0 flex-1 text-left font-mono text-[12px] text-fg truncate',
+        'hover:text-accent transition-colors',
+        'focus-visible:outline-none focus-visible:text-accent',
+      )}
+    >
+      {filename}
+    </button>
+  );
+}
+
+function Connector({ lit }: { lit: boolean }) {
+  return (
+    <div
+      aria-hidden
+      className={cn(
+        'shrink-0 w-12 self-start mt-7 h-px transition-colors duration-200',
+        lit ? 'bg-accent/55' : 'bg-bg-border',
+      )}
+    />
+  );
+}

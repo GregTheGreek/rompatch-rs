@@ -68,3 +68,16 @@ export async function pickSavePath(
   });
   return result ?? null;
 }
+
+export async function pickDirectory(
+  defaultPath?: string,
+  title?: string,
+): Promise<string | null> {
+  const result = await open({
+    directory: true,
+    multiple: false,
+    defaultPath,
+    title: title ?? 'Select folder',
+  });
+  return typeof result === 'string' ? result : null;
+}
