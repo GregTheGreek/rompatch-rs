@@ -43,8 +43,78 @@ cd crates/rompatch-gui
 cargo tauri build --target universal-apple-darwin
 ```
 
-The signed/unsigned `.dmg` lands in
-`target/universal-apple-darwin/release/bundle/dmg/`.
+The unsigned `.dmg` lands in
+`target/universal-apple-darwin/release/bundle/dmg/`. Recipients will
+hit Gatekeeper on first launch ("can't be opened - Apple cannot check
+it") and need to right-click - Open - Open. To produce a signed +
+notarized `.dmg` that launches without that dance, cut a tag (see
+[Releases](#releases)).
+
+## Releases
+
+Tag pushes (`v*`) trigger a signed + notarized + stapled universal
+`.dmg` build in CI. Local builds remain unsigned by design - this keeps
+the cert out of dev machines and the signing path exercised only on
+intentional releases.
+
+### One-time setup
+
+This needs to happen once, by the maintainer:
+
+1. Enrol in the [Apple Developer Program](https://developer.apple.com/programs/enroll/)
+   ($99/yr).
+2. In Keychain Access - Certificate Assistant - "Request a Certificate
+   from a Certificate Authority". Save the CSR locally.
+3. At <https://developer.apple.com/account/resources/certificates/list>,
+   create a **Developer ID Application** cert from the CSR. Download
+   the `.cer` and double-click to install in Keychain.
+4. In Keychain Access, find `Developer ID Application: <name> (<TEAM_ID>)`.
+   Right-click - Export as `.p12`. Set a strong password.
+5. `base64 -i developer-id.p12 -o developer-id.p12.b64`. The contents
+   of the `.b64` file are the `APPLE_CERTIFICATE_B64` secret.
+6. At <https://appleid.apple.com> - Sign-In and Security - App-Specific
+   Passwords, create one labelled `rompatch-notarize`. Copy it.
+7. Note your **Apple Team ID** (10 chars, visible at
+   <https://developer.apple.com/account>).
+
+Then add these repo secrets at
+<https://github.com/GregTheGreek/rompatch-rs/settings/secrets/actions>:
+
+| Secret                       | Value                                                           |
+|------------------------------|-----------------------------------------------------------------|
+| `APPLE_CERTIFICATE_B64`      | Contents of `developer-id.p12.b64`                              |
+| `APPLE_CERTIFICATE_PASSWORD` | The `.p12` export password                                      |
+| `APPLE_SIGNING_IDENTITY`     | `Developer ID Application: <Your Name> (<TEAM_ID>)`             |
+| `APPLE_ID`                   | Your Apple ID email                                             |
+| `APPLE_PASSWORD`             | The app-specific password from step 6                           |
+| `APPLE_TEAM_ID`              | 10-char team ID                                                 |
+| `KEYCHAIN_PASSWORD`          | Any random string - the ephemeral CI keychain password          |
+
+### Cutting a release
+
+```bash
+git tag v0.1.1
+git -c core.sshCommand="ssh -i ~/.ssh/gwm-claude" push origin v0.1.1
+```
+
+CI takes ~10 minutes. Watch the `gui` job for `Notarizing` and
+`Stapling` lines. On success, the signed `.dmg` is uploaded as the
+`rompatch-gui-macos-universal` artifact.
+
+### Verifying a downloaded `.dmg`
+
+```bash
+xcrun stapler validate rompatch_0.1.1_universal.dmg
+# The validate action worked!
+
+spctl --assess --type open --context context:primary-signature rompatch_0.1.1_universal.dmg
+# accepted
+# source=Notarized Developer ID
+```
+
+If those pass, double-clicking the `.dmg` and dragging to
+`/Applications` produces an app that launches without any Gatekeeper
+prompt on any macOS 10.15+ machine.
 
 ## Pinning policy
 

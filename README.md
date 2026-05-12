@@ -34,7 +34,7 @@ Items deliberately left out of the v1 cut, with the reason. Open to PRs.
 | ZIP-input              | Deferred   | Quality-of-life only - lets `rompatch apply rom.zip patch.bps` work without an `unzip` step first. No format unlock.                                                                                  |
 | Patch creation         | Out of scope | This crate is apply-only by design. Match-finding (BPS), delta search (VCDIFF), and encoder logic are an order of magnitude more work than the apply path and are well-served by existing tools.    |
 | Web / WASM / Node      | Out of scope | RomPatcher.js already covers the browser/Node side. This rewrite targets the CLI.                                                                                                                   |
-| GUI                    | Out of scope | CLI only.                                                                                                                                                                                              |
+| GUI                    | Shipped (macOS) | Native macOS app in [`crates/rompatch-gui`](crates/rompatch-gui/README.md) (Tauri 2 + React). Windows/Linux installers and non-Mac codesigning are out of scope today.                              |
 | EBP                    | Not applicable | EBP exists in CoilSnake's Python `EBPatcher` but is not part of marcrobledo/RomPatcher.js (the reference we mirror).                                                                                |
 
 Things that would make a good follow-up:

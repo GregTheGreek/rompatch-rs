@@ -79,16 +79,53 @@ jobs:
       - name: install tauri-cli
         if: startsWith(github.ref, 'refs/tags/')
         run: cargo binstall tauri-cli@2.11.1 --no-confirm --locked
+      # Import the Developer ID Application cert into an ephemeral
+      # keychain so codesign can find it. Cleaned up at end-of-job.
+      - name: import Apple signing certificate
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          APPLE_CERTIFICATE_B64: ${{ secrets.APPLE_CERTIFICATE_B64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          CERT_PATH="$RUNNER_TEMP/developer-id.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain-db"
+          echo "$APPLE_CERTIFICATE_B64" | base64 --decode > "$CERT_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          rm -f "$CERT_PATH"
+      # When APPLE_SIGNING_IDENTITY + APPLE_ID + APPLE_PASSWORD +
+      # APPLE_TEAM_ID are all set, Tauri's bundler signs the .app/.dmg,
+      # submits to notarytool, and staples the ticket automatically.
       - name: tauri build universal .dmg
         if: startsWith(github.ref, 'refs/tags/')
         working-directory: crates/rompatch-gui
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: cargo tauri build --target universal-apple-darwin
+      - name: verify notarization + signature
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          DMG=$(ls target/universal-apple-darwin/release/bundle/dmg/*.dmg | head -1)
+          xcrun stapler validate "$DMG"
+          spctl --assess --type open --context context:primary-signature "$DMG"
       - name: upload .dmg artifact
         if: startsWith(github.ref, 'refs/tags/')
         uses: actions/upload-artifact@v4
         with:
           name: rompatch-gui-macos-universal
           path: target/universal-apple-darwin/release/bundle/dmg/*.dmg
+      - name: cleanup keychain
+        if: always() && startsWith(github.ref, 'refs/tags/')
+        run: |
+          security delete-keychain "$RUNNER_TEMP/build.keychain-db" || true
 
   deny:
     name: cargo-deny
