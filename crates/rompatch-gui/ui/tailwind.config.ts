@@ -6,17 +6,18 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Sleek dark palette inspired by Linear/Vercel.
+        // Neutral light-grey palette. No blue tint - reads closer to macOS
+        // native dark mode. Steps preserve clear contrast between layers.
         bg: {
-          DEFAULT: '#0b0b0f',
-          raised: '#15151c',
-          input: '#1c1c25',
-          border: '#26262f',
+          DEFAULT: '#1e1e20',
+          raised: '#2a2a2d',
+          input: '#37373b',
+          border: '#48484d',
         },
         fg: {
-          DEFAULT: '#e8e8ec',
-          muted: '#a0a0ad',
-          subtle: '#6b6b78',
+          DEFAULT: '#ebebec',
+          muted: '#a5a5a8',
+          subtle: '#707075',
         },
         accent: {
           DEFAULT: '#7c5cff',
@@ -52,6 +53,7 @@ const config: Config = {
       animation: {
         'fade-in': 'fadeIn 120ms ease-out',
         'slide-up': 'slideUp 200ms cubic-bezier(0.16, 1, 0.3, 1)',
+        'pulse-glow': 'pulseGlow 1400ms ease-in-out infinite',
       },
       keyframes: {
         fadeIn: {
@@ -61,6 +63,14 @@ const config: Config = {
         slideUp: {
           from: { opacity: '0', transform: 'translateY(6px)' },
           to: { opacity: '1', transform: 'translateY(0)' },
+        },
+        pulseGlow: {
+          '0%, 100%': {
+            boxShadow: '0 0 0 0 rgba(124,92,255,0.55), 0 0 24px rgba(124,92,255,0.25)',
+          },
+          '50%': {
+            boxShadow: '0 0 0 6px rgba(124,92,255,0), 0 0 36px rgba(124,92,255,0.45)',
+          },
         },
       },
     },

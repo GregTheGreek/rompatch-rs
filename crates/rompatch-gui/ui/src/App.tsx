@@ -1,40 +1,64 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ApplyPanel } from './components/ApplyPanel';
-import { HashPanel } from './components/HashPanel';
-import { InspectPanel } from './components/InspectPanel';
-import { Tab, TabList, TabPanel, Tabs } from './components/Tabs';
+import { HomePage } from './components/HomePage';
+import { Sidebar } from './components/Sidebar';
+import type { Page } from './components/Sidebar';
+import { SidebarToggle } from './components/SidebarToggle';
 import { ToastProvider } from './components/Toast';
 
-type TabId = 'apply' | 'inspect' | 'hash';
+// Wire up window dragging for elements marked with data-tauri-drag-region.
+// Tauri ships a built-in handler, but it can miss elements that are nested
+// or under stacking transforms; doing it explicitly is reliable.
+function useWindowDrag() {
+  useEffect(() => {
+    const appWindow = getCurrentWindow();
+
+    function onMouseDown(e: MouseEvent) {
+      if (e.button !== 0) return;
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      const dragEl = target.closest('[data-tauri-drag-region]');
+      if (!dragEl) return;
+      const blocker = target.closest(
+        'button, a, input, textarea, select, [role="button"], [role="switch"]',
+      );
+      if (blocker && dragEl.contains(blocker)) return;
+      e.preventDefault();
+      if (e.detail === 2) {
+        void appWindow.toggleMaximize();
+      } else {
+        void appWindow.startDragging();
+      }
+    }
+
+    document.addEventListener('mousedown', onMouseDown);
+    return () => document.removeEventListener('mousedown', onMouseDown);
+  }, []);
+}
 
 export function App() {
-  const [tab, setTab] = useState<TabId>('apply');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [page, setPage] = useState<Page>('patch');
+
+  useWindowDrag();
 
   return (
     <ToastProvider>
-      <div className="flex flex-col h-full bg-bg text-fg font-sans">
-        <header className="px-5 pt-5 pb-2 flex items-baseline gap-2">
-          <h1 className="text-lg font-semibold tracking-tight">rompatch</h1>
-          <span className="text-xs text-fg-muted">
-            ROM patcher
-          </span>
-        </header>
-        <Tabs value={tab} onChange={(v) => setTab(v as TabId)}>
-          <TabList>
-            <Tab value="apply">Apply</Tab>
-            <Tab value="inspect">Inspect</Tab>
-            <Tab value="hash">Hash</Tab>
-          </TabList>
-          <TabPanel value="apply">
-            <ApplyPanel />
-          </TabPanel>
-          <TabPanel value="inspect">
-            <InspectPanel />
-          </TabPanel>
-          <TabPanel value="hash">
-            <HashPanel />
-          </TabPanel>
-        </Tabs>
+      <div className="flex h-full bg-bg text-fg font-sans overflow-hidden relative">
+        <SidebarToggle
+          open={sidebarOpen}
+          onToggle={() => setSidebarOpen((v) => !v)}
+        />
+        <Sidebar
+          open={sidebarOpen}
+          currentPage={page}
+          onPageChange={setPage}
+        />
+        <main className="flex-1 flex flex-col overflow-hidden relative">
+          <div data-tauri-drag-region className="h-12 shrink-0" />
+          {page === 'home' ? <HomePage /> : <ApplyPanel />}
+        </main>
       </div>
     </ToastProvider>
   );
