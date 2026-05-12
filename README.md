@@ -53,6 +53,13 @@ cargo build --release
 Auto-detection picks the format from the patch's magic bytes; pass
 `--format <name>` to override. See the CLI README below for all flags.
 
+Prebuilt macOS GUI bundles are published as GitHub Releases with
+sigstore build-provenance attestations. Verify with
+`gh attestation verify <dmg> --owner GregTheGreek`. See
+[Releases](https://github.com/GregTheGreek/rompatch-rs/releases) and
+[`crates/rompatch-gui/README.md`](crates/rompatch-gui/README.md#releases)
+for the release process.
+
 ## Layout
 
 ```

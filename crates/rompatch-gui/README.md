@@ -52,14 +52,60 @@ notarized `.dmg` that launches without that dance, cut a tag (see
 
 ## Releases
 
-Tag pushes (`v*`) trigger a signed + notarized + stapled universal
-`.dmg` build in CI. Local builds remain unsigned by design - this keeps
-the cert out of dev machines and the signing path exercised only on
-intentional releases.
+Tag pushes (`v*`) trigger a universal `.dmg` build in CI, attach a
+sigstore-backed build-provenance attestation, and publish a GitHub
+Release with the `.dmg` attached.
 
-### One-time setup
+Two flavours depending on whether Apple Developer secrets are present:
 
-This needs to happen once, by the maintainer:
+| State                        | Result                                                                                          |
+|------------------------------|-------------------------------------------------------------------------------------------------|
+| No Apple secrets (default)   | Unsigned + sigstore-attested `.dmg`. Recipients hit Gatekeeper on first launch (right-click - Open). |
+| Apple secrets populated      | Codesigned, notarized, stapled, *and* sigstore-attested `.dmg`. No Gatekeeper prompt.            |
+
+Sigstore attestation runs unconditionally. Apple steps activate the
+moment the seven `APPLE_*` + `KEYCHAIN_PASSWORD` secrets land.
+
+### Cutting a release
+
+```bash
+git tag v0.1.0
+git -c core.sshCommand="ssh -i ~/.ssh/gwm-claude" push origin v0.1.0
+```
+
+CI takes ~10 minutes. On success, the release lands at
+<https://github.com/GregTheGreek/rompatch-rs/releases>.
+
+### Verifying a downloaded `.dmg`
+
+Sigstore attestation (works on every release):
+
+```bash
+gh release download v0.1.0 --pattern "*.dmg" -D .
+gh attestation verify rompatch_0.1.0_universal.dmg --owner GregTheGreek
+# Loaded digest sha256:...
+# Verified attestation. Provenance verified.
+```
+
+Apple signature + notarization (only when Apple secrets were set):
+
+```bash
+xcrun stapler validate rompatch_0.1.0_universal.dmg
+# The validate action worked!
+
+spctl --assess --type open --context context:primary-signature rompatch_0.1.0_universal.dmg
+# accepted
+# source=Notarized Developer ID
+```
+
+If the Apple checks pass, double-clicking the `.dmg` and dragging to
+`/Applications` produces an app that launches without any Gatekeeper
+prompt on any macOS 10.15+ machine.
+
+### Enabling Apple signing (one-time setup)
+
+When you're ready to switch from "attested only" to "attested +
+codesigned + notarized":
 
 1. Enrol in the [Apple Developer Program](https://developer.apple.com/programs/enroll/)
    ($99/yr).
@@ -90,31 +136,9 @@ Then add these repo secrets at
 | `APPLE_TEAM_ID`              | 10-char team ID                                                 |
 | `KEYCHAIN_PASSWORD`          | Any random string - the ephemeral CI keychain password          |
 
-### Cutting a release
-
-```bash
-git tag v0.1.1
-git -c core.sshCommand="ssh -i ~/.ssh/gwm-claude" push origin v0.1.1
-```
-
-CI takes ~10 minutes. Watch the `gui` job for `Notarizing` and
-`Stapling` lines. On success, the signed `.dmg` is uploaded as the
-`rompatch-gui-macos-universal` artifact.
-
-### Verifying a downloaded `.dmg`
-
-```bash
-xcrun stapler validate rompatch_0.1.1_universal.dmg
-# The validate action worked!
-
-spctl --assess --type open --context context:primary-signature rompatch_0.1.1_universal.dmg
-# accepted
-# source=Notarized Developer ID
-```
-
-If those pass, double-clicking the `.dmg` and dragging to
-`/Applications` produces an app that launches without any Gatekeeper
-prompt on any macOS 10.15+ machine.
+The CI workflow detects `APPLE_CERTIFICATE_B64` being non-empty and
+flips automatically. Re-tag (or push a new tag) after adding secrets to
+verify.
 
 ## Pinning policy
 
