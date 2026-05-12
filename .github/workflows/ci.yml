@@ -108,17 +108,24 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security list-keychain -d user -s "$KEYCHAIN_PATH"
           rm -f "$CERT_PATH"
-      # When APPLE_SIGNING_IDENTITY + APPLE_ID + APPLE_PASSWORD +
-      # APPLE_TEAM_ID are all set, Tauri's bundler signs the .app/.dmg,
-      # submits to notarytool, and staples the ticket automatically.
-      - name: tauri build universal .dmg
-        if: startsWith(github.ref, 'refs/tags/')
+      # GitHub Actions sets referenced secrets to empty strings when
+      # they're missing rather than leaving the env var unset; Tauri 2
+      # treats APPLE_SIGNING_IDENTITY="" as "signing enabled, identity
+      # is empty" and the build fails looking up "" in the keychain.
+      # Split into two siblings so the unsigned path runs without any
+      # APPLE_* env vars present at all.
+      - name: tauri build universal .dmg (signed)
+        if: startsWith(github.ref, 'refs/tags/') && env.APPLE_SIGNING_ENABLED == 'true'
         working-directory: crates/rompatch-gui
         env:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: cargo tauri build --target universal-apple-darwin
+      - name: tauri build universal .dmg (unsigned)
+        if: startsWith(github.ref, 'refs/tags/') && env.APPLE_SIGNING_ENABLED != 'true'
+        working-directory: crates/rompatch-gui
         run: cargo tauri build --target universal-apple-darwin
       - name: verify notarization + signature
         if: startsWith(github.ref, 'refs/tags/') && env.APPLE_SIGNING_ENABLED == 'true'
