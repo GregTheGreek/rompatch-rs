@@ -41,6 +41,15 @@ jobs:
   gui:
     name: gui (macOS check + universal .dmg on tag)
     runs-on: macos-14
+    # APPLE_SIGNING_ENABLED is true only when the Developer ID Application
+    # cert secret is populated. When false, the build still runs and ships
+    # an unsigned + sigstore-attested .dmg; the Apple-specific steps skip.
+    env:
+      APPLE_SIGNING_ENABLED: ${{ secrets.APPLE_CERTIFICATE_B64 != '' }}
+    permissions:
+      contents: write     # softprops/action-gh-release needs this to create the release
+      id-token: write     # sigstore OIDC for attestation
+      attestations: write # attestation storage
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -82,7 +91,7 @@ jobs:
       # Import the Developer ID Application cert into an ephemeral
       # keychain so codesign can find it. Cleaned up at end-of-job.
       - name: import Apple signing certificate
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') && env.APPLE_SIGNING_ENABLED == 'true'
         env:
           APPLE_CERTIFICATE_B64: ${{ secrets.APPLE_CERTIFICATE_B64 }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -111,19 +120,35 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: cargo tauri build --target universal-apple-darwin
       - name: verify notarization + signature
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') && env.APPLE_SIGNING_ENABLED == 'true'
         run: |
           DMG=$(ls target/universal-apple-darwin/release/bundle/dmg/*.dmg | head -1)
           xcrun stapler validate "$DMG"
           spctl --assess --type open --context context:primary-signature "$DMG"
+      # Sigstore-backed build provenance attestation. Free, transparency-
+      # logged, and verifiable by anyone with `gh attestation verify`.
+      # Runs on every tag regardless of Apple-signing state.
+      - name: attest .dmg
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: target/universal-apple-darwin/release/bundle/dmg/*.dmg
       - name: upload .dmg artifact
         if: startsWith(github.ref, 'refs/tags/')
         uses: actions/upload-artifact@v4
         with:
           name: rompatch-gui-macos-universal
           path: target/universal-apple-darwin/release/bundle/dmg/*.dmg
+      # Auto-create a GitHub Release with auto-generated release notes
+      # and the .dmg attached.
+      - name: create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
+        with:
+          generate_release_notes: true
+          files: target/universal-apple-darwin/release/bundle/dmg/*.dmg
       - name: cleanup keychain
-        if: always() && startsWith(github.ref, 'refs/tags/')
+        if: always() && startsWith(github.ref, 'refs/tags/') && env.APPLE_SIGNING_ENABLED == 'true'
         run: |
           security delete-keychain "$RUNNER_TEMP/build.keychain-db" || true
 
