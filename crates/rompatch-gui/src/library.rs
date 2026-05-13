@@ -247,8 +247,7 @@ fn now_iso() -> String {
     // SystemTime -> seconds since epoch -> rough ISO. We don't pull chrono.
     let secs = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
+        .map_or(0, |d| d.as_secs());
     format_unix_seconds_utc(secs)
 }
 
