@@ -41,7 +41,11 @@ jobs:
 
   gui:
     name: gui (macOS check + universal .dmg on tag)
-    runs-on: macos-14
+    # macos-14 image build 20260512 ships a broken cargo proxy that
+    # invokes rustup-init on `cargo check`. macos-15 is the same arm64
+    # runner family and is already proven by the `test (macos-latest)`
+    # matrix entry on this workflow.
+    runs-on: macos-15
     # APPLE_SIGNING_ENABLED is true only when the Developer ID Application
     # cert secret is populated. When false, the build still runs and ships
     # an unsigned + sigstore-attested .dmg; the Apple-specific steps skip.
