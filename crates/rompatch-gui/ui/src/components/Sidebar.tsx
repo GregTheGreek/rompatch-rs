@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
 import { cn } from '../lib/cn';
-import { HomeIcon, PackageIcon } from '../lib/icons';
+import { DatabaseIcon, PackageIcon } from '../lib/icons';
 
-export type Page = 'home' | 'patch';
+export type Page = 'library' | 'patch';
 
 interface SidebarProps {
   open: boolean;
@@ -42,10 +42,10 @@ export function Sidebar({ open, currentPage, onPageChange }: SidebarProps) {
 
       <nav className="flex flex-col gap-0.5 px-2">
         <NavItem
-          icon={<HomeIcon size={15} />}
-          label="Home"
-          active={currentPage === 'home'}
-          onClick={() => onPageChange('home')}
+          icon={<DatabaseIcon size={15} />}
+          label="Library"
+          active={currentPage === 'library'}
+          onClick={() => onPageChange('library')}
         />
         <NavItem
           icon={<PackageIcon size={15} />}

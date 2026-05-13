@@ -12,6 +12,12 @@ pub enum GuiError {
     Apply(#[from] rompatch_core::ApplyError),
     #[error("{0}")]
     Patch(#[from] rompatch_core::PatchError),
+    #[error("JSON error: {0}")]
+    Json(#[from] serde_json::Error),
+    #[error("{0}")]
+    Library(String),
+    #[error("Tauri error: {0}")]
+    Tauri(#[from] tauri::Error),
 }
 
 #[derive(Debug, Serialize)]
@@ -29,6 +35,9 @@ impl serde::Serialize for GuiError {
             GuiError::Io(_) => "io",
             GuiError::Apply(_) => "apply",
             GuiError::Patch(_) => "patch",
+            GuiError::Json(_) => "json",
+            GuiError::Library(_) => "library",
+            GuiError::Tauri(_) => "tauri",
         };
         IpcError {
             kind,

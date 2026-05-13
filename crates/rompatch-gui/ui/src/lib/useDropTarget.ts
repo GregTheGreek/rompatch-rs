@@ -8,7 +8,7 @@ import { getCurrentWebview } from '@tauri-apps/api/webview';
 
 export interface DropTarget {
   ref: React.RefObject<HTMLElement>;
-  onDrop: (path: string) => void;
+  onDrop: (paths: string[]) => void;
   onHoverChange?: (hovered: boolean) => void;
 }
 
@@ -61,21 +61,21 @@ function ensureSubscribed() {
     if (p.type === 'drop') {
       const target = hitTest(p.position.x, p.position.y);
       setHover(null);
-      const first = p.paths[0];
-      if (target && first !== undefined) {
-        target.onDrop(first);
+      if (target && p.paths.length > 0) {
+        target.onDrop(p.paths);
       }
     }
   });
 }
 
 /**
- * Register a DOM element as a file-drop target. Takes the first dropped path
- * and ignores the rest. `onHoverChange` reflects whether the cursor (with a
- * file being dragged) is currently over this target.
+ * Register a DOM element as a file-drop target. `onDrop` receives every
+ * dropped path; consumers that only care about a single file should pick
+ * `paths[0]`. `onHoverChange` reflects whether the cursor (with a file
+ * being dragged) is currently over this target.
  */
 export function useDropTarget<T extends HTMLElement = HTMLDivElement>(
-  onDrop: (path: string) => void,
+  onDrop: (paths: string[]) => void,
   onHoverChange?: (hovered: boolean) => void,
 ): React.RefObject<T> {
   const ref = useRef<T>(null);

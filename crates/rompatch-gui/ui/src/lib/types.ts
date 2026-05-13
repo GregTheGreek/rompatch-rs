@@ -59,8 +59,50 @@ export interface ApplyReport {
 }
 
 export interface IpcError {
-  kind: 'io' | 'apply' | 'patch';
+  kind: 'io' | 'apply' | 'patch' | 'json' | 'library' | 'tauri';
   message: string;
+}
+
+// ---------- library ----------
+
+export interface LibraryRomEntry {
+  id: string;
+  rom_hash: string;
+  rom_name: string;
+  rom_size: number;
+  header: HeaderKind | null;
+  added_at: string;
+}
+
+export interface LibraryEntry {
+  id: string;
+  source_rom_hash: string;
+  source_rom_name: string;
+  source_rom_size: number;
+  patch_hash: string;
+  patch_name: string;
+  patch_format: FormatKind;
+  output_hash: string;
+  output_name: string;
+  output_size: number;
+  header: HeaderKind | null;
+  fixed_checksum: ChecksumFamily | null;
+  applied_at: string; // ISO 8601 UTC
+  apply_options: ApplyOptions;
+}
+
+export type VerifyStatus = 'match' | 'mismatch' | 'missing';
+
+export type RevealTarget = 'source' | 'patch' | 'output';
+
+export interface LibraryRecordArgs {
+  source_path: string;
+  patch_path: string;
+  output_path: string;
+  format: FormatKind;
+  header: HeaderKind | null;
+  fixed_checksum: ChecksumFamily | null;
+  apply_options: ApplyOptions;
 }
 
 // Display names for UI labels.

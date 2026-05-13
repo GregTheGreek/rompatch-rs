@@ -11,7 +11,19 @@ interface DropTileProps {
   filledLabel?: string;
   icon: ReactNode;
   value: string | null;
+  /**
+   * Optional friendly name shown in the pill and tooltip instead of the
+   * value's basename. Useful when `value` points to a content-addressed
+   * library file but the user thinks of it under its original name.
+   */
+  displayName?: string | null;
   onChange: (path: string | null) => void;
+  /**
+   * Optional click handler that replaces the default file-picker dialog.
+   * Used when the tile is wrapped in a higher-level menu (e.g. library +
+   * import). Drag-and-drop is unaffected.
+   */
+  onPick?: () => void;
   dialogTitle?: string;
   badge?: ReactNode;
 }
@@ -26,13 +38,20 @@ export function DropTile({
   filledLabel,
   icon,
   value,
+  displayName,
   onChange,
+  onPick,
   dialogTitle,
   badge,
 }: DropTileProps) {
   const { toast } = useToast();
   const [hovering, setHovering] = useState(false);
-  const dropRef = useDropTarget<HTMLDivElement>((path) => onChange(path), setHovering);
+  const dropRef = useDropTarget<HTMLDivElement>(
+    (paths) => {
+      if (paths[0]) onChange(paths[0]);
+    },
+    setHovering,
+  );
   const filled = value !== null && value !== '';
 
   async function handlePick() {
@@ -67,7 +86,7 @@ export function DropTile({
       <div className="relative max-w-full w-full flex justify-center">
         <button
           type="button"
-          onClick={handlePick}
+          onClick={onPick ?? handlePick}
           className={cn(
             'inline-flex items-center justify-center gap-2 px-5 h-10 rounded-full',
             'text-sm font-medium select-none transition-all duration-150 max-w-full min-w-[10rem]',
@@ -80,7 +99,9 @@ export function DropTile({
           )}
         >
           <span className="truncate">
-            {filled ? basename(value!) : filledLabel ?? `Select ${label}`}
+            {filled
+              ? displayName ?? basename(value!)
+              : filledLabel ?? `Select ${label}`}
           </span>
           {filled && (
             <span
@@ -118,7 +139,7 @@ export function DropTile({
               'opacity-0 group-hover:opacity-100 transition-opacity duration-150 z-30',
             )}
           >
-            {basename(value!)}
+            {displayName ?? basename(value!)}
           </div>
         )}
       </div>

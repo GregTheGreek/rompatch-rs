@@ -95,6 +95,15 @@ export const DownloadIcon = (p: IconProps) =>
     </>
   ));
 
+export const UploadIcon = (p: IconProps) =>
+  svg(p, (
+    <>
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="17 8 12 3 7 8" />
+      <line x1="12" y1="3" x2="12" y2="15" />
+    </>
+  ));
+
 export const PackageIcon = (p: IconProps) =>
   svg(p, (
     <>
@@ -112,11 +121,29 @@ export const FolderIcon = (p: IconProps) =>
     </>
   ));
 
-export const HomeIcon = (p: IconProps) =>
+export const DatabaseIcon = (p: IconProps) =>
   svg(p, (
     <>
-      <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-      <polyline points="9 22 9 12 15 12 15 22" />
+      <ellipse cx="12" cy="5" rx="9" ry="3" />
+      <path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+      <path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6" />
+    </>
+  ));
+
+export const RefreshIcon = (p: IconProps) =>
+  svg(p, (
+    <>
+      <polyline points="23 4 23 10 17 10" />
+      <polyline points="1 20 1 14 7 14" />
+      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+    </>
+  ));
+
+export const ShieldCheckIcon = (p: IconProps) =>
+  svg(p, (
+    <>
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      <polyline points="9 12 11 14 15 10" />
     </>
   ));
 
@@ -125,6 +152,17 @@ export const PanelLeftIcon = (p: IconProps) =>
     <>
       <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
       <line x1="9" y1="3" x2="9" y2="21" />
+    </>
+  ));
+
+export const TrashIcon = (p: IconProps) =>
+  svg(p, (
+    <>
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6" />
+      <path d="M10 11v6" />
+      <path d="M14 11v6" />
+      <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
     </>
   ));
 

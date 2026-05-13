@@ -10,7 +10,7 @@ import type { ReactNode } from 'react';
 import { cn } from '../lib/cn';
 import { AlertIcon, CheckIcon, XIcon } from '../lib/icons';
 
-type ToastVariant = 'success' | 'error' | 'info';
+type ToastVariant = 'success' | 'error' | 'warning' | 'info';
 
 interface ToastInput {
   title: string;
@@ -39,12 +39,14 @@ export function useToast(): ToastContextValue {
 const VARIANT_STYLES: Record<ToastVariant, string> = {
   success: 'border-success/30 bg-success/10 text-fg',
   error: 'border-danger/40 bg-danger/10 text-fg',
+  warning: 'border-warning/30 bg-warning/10 text-fg',
   info: 'border-accent/30 bg-accent-subtle/30 text-fg',
 };
 
 const VARIANT_ICON: Record<ToastVariant, ReactNode> = {
   success: <CheckIcon size={16} className="text-success" />,
   error: <AlertIcon size={16} className="text-danger" />,
+  warning: <AlertIcon size={16} className="text-warning" />,
   info: <AlertIcon size={16} className="text-accent" />,
 };
 
