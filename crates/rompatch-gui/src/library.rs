@@ -489,6 +489,42 @@ pub fn reapply(root: &Path, entry_id: &str) -> GuiResult<VerifyStatus> {
     })
 }
 
+/// Write a playable copy of an entry's output to `dest`. Fast path is a
+/// `fs::copy` from the content-addressed library blob; if that blob is
+/// missing on disk we regenerate the bytes from the stored source + patch
+/// using the original `ApplyOptions`, then write to `dest` and restore the
+/// library blob so subsequent exports stay fast.
+pub fn export(root: &Path, entry_id: &str, dest: &Path) -> GuiResult<()> {
+    let index = load_index(root)?;
+    let entry = index
+        .entries
+        .iter()
+        .find(|e| e.id == entry_id)
+        .ok_or_else(|| GuiError::Library(format!("entry not found: {entry_id}")))?;
+
+    if let Some(parent) = dest.parent() {
+        fs::create_dir_all(parent)?;
+    }
+
+    let (source_path, patch_path, library_output) = entry_paths(root, entry);
+
+    if library_output.exists() {
+        fs::copy(&library_output, dest)?;
+        return Ok(());
+    }
+
+    // Out-of-band delete of the library blob: regenerate deterministically.
+    let source_bytes = fs::read(&source_path)?;
+    let patch_bytes = fs::read(&patch_path)?;
+    let outcome = rompatch_core::apply::run(&source_bytes, &patch_bytes, &entry.apply_options)?;
+    fs::write(dest, &outcome.output)?;
+    if let Some(parent) = library_output.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(&library_output, &outcome.output)?;
+    Ok(())
+}
+
 pub fn reveal_path(root: &Path, entry_id: &str, target: RevealTarget) -> GuiResult<PathBuf> {
     let index = load_index(root)?;
     let entry = index
@@ -794,6 +830,89 @@ mod tests {
         )
         .unwrap();
         let err = delete_entry(&root, "does-not-exist").unwrap_err();
+        assert!(matches!(err, GuiError::Library(_)));
+    }
+
+    fn make_entry_for_export(dir: &Path, root: &Path) -> LibraryEntry {
+        // Hand-built IPS patch: replace 4 bytes at offset 8 of a 16-byte ROM.
+        // Real format so the regenerate-via-apply path is exercised end-to-end.
+        let source_bytes = vec![0u8; 16];
+        let mut output_bytes = source_bytes.clone();
+        output_bytes[8..12].copy_from_slice(b"\xDE\xAD\xBE\xEF");
+
+        let mut patch_bytes = b"PATCH".to_vec();
+        // record: offset=0x000008, size=0x0004, data=DEADBEEF
+        patch_bytes.extend_from_slice(&[0x00, 0x00, 0x08, 0x00, 0x04]);
+        patch_bytes.extend_from_slice(b"\xDE\xAD\xBE\xEF");
+        patch_bytes.extend_from_slice(b"EOF");
+
+        let source = write_tmp(dir, "rom.bin", &source_bytes);
+        let output = write_tmp(dir, "out.bin", &output_bytes);
+        let patch = write_tmp(dir, "p.ips", &patch_bytes);
+
+        record(RecordInput {
+            root,
+            source_path: &source,
+            patch_path: &patch,
+            output_path: &output,
+            format: FormatKind::Ips,
+            header: None,
+            fixed_checksum: None,
+            apply_options: ApplyOptions::default(),
+        })
+        .unwrap()
+    }
+
+    #[test]
+    fn export_uses_library_copy_when_present() {
+        let dir = TempDir::new().unwrap();
+        let root = dir.path().join("lib");
+        let entry = make_entry_for_export(dir.path(), &root);
+
+        let dest = dir.path().join("exported.bin");
+        export(&root, &entry.id, &dest).unwrap();
+
+        let exported = fs::read(&dest).unwrap();
+        assert_eq!(sha256_bytes(&exported), entry.output_hash);
+    }
+
+    #[test]
+    fn export_regenerates_when_library_blob_missing() {
+        let dir = TempDir::new().unwrap();
+        let root = dir.path().join("lib");
+        let entry = make_entry_for_export(dir.path(), &root);
+
+        // Simulate an out-of-band delete of the library's output blob.
+        let (_src, _patch, library_output) = entry_paths(&root, &entry);
+        fs::remove_file(&library_output).unwrap();
+        assert!(!library_output.exists());
+
+        let dest = dir.path().join("exported.bin");
+        export(&root, &entry.id, &dest).unwrap();
+
+        let exported = fs::read(&dest).unwrap();
+        assert_eq!(sha256_bytes(&exported), entry.output_hash);
+        // Library blob should be restored for future fast-path exports.
+        assert!(library_output.exists());
+        assert_eq!(sha256_file(&library_output).unwrap(), entry.output_hash);
+    }
+
+    #[test]
+    fn export_unknown_id_errors() {
+        let dir = TempDir::new().unwrap();
+        let root = dir.path().join("lib");
+        fs::create_dir_all(&root).unwrap();
+        save_index(
+            &root,
+            &LibraryIndex {
+                version: LIBRARY_INDEX_VERSION,
+                root: root.clone(),
+                roms: Vec::new(),
+                entries: Vec::new(),
+            },
+        )
+        .unwrap();
+        let err = export(&root, "missing", &dir.path().join("x.bin")).unwrap_err();
         assert!(matches!(err, GuiError::Library(_)));
     }
 

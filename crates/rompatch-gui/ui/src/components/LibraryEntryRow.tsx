@@ -5,7 +5,7 @@ import { cn } from '../lib/cn';
 import { formatIpcError } from '../lib/errors';
 import {
   CheckIcon,
-  FolderIcon,
+  DownloadIcon,
   RefreshIcon,
   ShieldCheckIcon,
   TrashIcon,
@@ -13,9 +13,10 @@ import {
 } from '../lib/icons';
 import {
   libraryDeleteEntry,
+  libraryExport,
   libraryReapply,
-  libraryReveal,
   libraryVerify,
+  pickSavePath,
 } from '../lib/tauri';
 import { FORMAT_DISPLAY } from '../lib/types';
 import type { LibraryEntry, VerifyStatus } from '../lib/types';
@@ -144,13 +145,20 @@ export function LibraryEntryRow({ entry, onDeleted }: LibraryEntryRowProps) {
     }
   }
 
-  async function handleReveal(e: React.MouseEvent) {
+  async function handleExport(e: React.MouseEvent) {
     e.stopPropagation();
     try {
-      await libraryReveal(entry.id, 'output');
+      const dest = await pickSavePath(entry.output_name, 'Export patched ROM');
+      if (!dest) return;
+      await libraryExport(entry.id, dest);
+      toast({
+        title: 'Exported',
+        description: dest,
+        variant: 'success',
+      });
     } catch (err) {
       toast({
-        title: 'Could not reveal',
+        title: 'Export failed',
         description: formatIpcError(err),
         variant: 'error',
       });
@@ -231,8 +239,8 @@ export function LibraryEntryRow({ entry, onDeleted }: LibraryEntryRowProps) {
             >
               <RefreshIcon size={13} />
             </ActionButton>
-            <ActionButton label="Reveal in Finder" onClick={handleReveal}>
-              <FolderIcon size={13} />
+            <ActionButton label="Export patched ROM" onClick={handleExport}>
+              <DownloadIcon size={13} />
             </ActionButton>
             <ActionButton label="Delete" onClick={handleDeleteRequest}>
               <TrashIcon size={13} />

@@ -24,6 +24,7 @@ pub fn run() {
             commands::library_reveal,
             commands::library_delete_entry,
             commands::library_delete_rom,
+            commands::library_export,
             commands::library_lookup_by_patch_hash,
         ])
         .run(tauri::generate_context!())

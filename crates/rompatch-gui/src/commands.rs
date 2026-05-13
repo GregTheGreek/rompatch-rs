@@ -223,6 +223,12 @@ pub fn library_delete_rom(app: AppHandle, rom_hash: String) -> GuiResult<()> {
 }
 
 #[tauri::command]
+pub fn library_export(app: AppHandle, entry_id: String, dest_path: PathBuf) -> GuiResult<()> {
+    let root = resolve_root(&app)?;
+    library::export(&root, &entry_id, &dest_path)
+}
+
+#[tauri::command]
 pub fn library_lookup_by_patch_hash(
     app: AppHandle,
     patch_path: PathBuf,

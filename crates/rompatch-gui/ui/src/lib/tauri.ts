@@ -140,6 +140,10 @@ export async function libraryDeleteRom(romHash: string): Promise<void> {
   return invoke<void>('library_delete_rom', { romHash });
 }
 
+export async function libraryExport(entryId: string, destPath: string): Promise<void> {
+  return invoke<void>('library_export', { entryId, destPath });
+}
+
 export async function libraryLookupByPatchHash(
   patchPath: string,
 ): Promise<LibraryEntry[]> {
