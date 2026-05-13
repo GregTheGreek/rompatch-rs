@@ -400,14 +400,35 @@ pub fn list_roms(root: &Path) -> GuiResult<Vec<LibraryRomEntry>> {
     Ok(index.roms)
 }
 
+/// Read just enough of `path` to run `format::detect` on the magic bytes.
+/// 64 bytes is overkill for every supported magic but keeps the read cheap.
+fn read_magic_prefix(path: &Path) -> std::io::Result<Vec<u8>> {
+    use std::io::Read;
+    let mut f = fs::File::open(path)?;
+    let mut buf = vec![0u8; 64];
+    let n = f.read(&mut buf)?;
+    buf.truncate(n);
+    Ok(buf)
+}
+
 /// Import a bare ROM into the library without a patch. Deduplicated by
 /// SHA-256 - re-importing the same file is a no-op that returns the existing
-/// entry. Returns the entry (existing or new).
+/// entry. Refuses files whose magic bytes match a known patch format, since
+/// patching a patch is never the intent. Returns the entry (existing or new).
 pub fn import_rom(
     root: &Path,
     rom_path: &Path,
     header: Option<HeaderKind>,
 ) -> GuiResult<LibraryRomEntry> {
+    let magic = read_magic_prefix(rom_path)?;
+    if let Some(format) = rompatch_core::format::detect(&magic) {
+        return Err(GuiError::Library(format!(
+            "{} looks like a {} patch, not a ROM. Patches can't be imported as ROMs - apply them to a ROM from the Patch page instead.",
+            filename_of(rom_path),
+            format.name()
+        )));
+    }
+
     fs::create_dir_all(root)?;
     let hash = sha256_file(rom_path)?;
     let size = fs::metadata(rom_path)?.len();
@@ -914,6 +935,37 @@ mod tests {
         .unwrap();
         let err = export(&root, "missing", &dir.path().join("x.bin")).unwrap_err();
         assert!(matches!(err, GuiError::Library(_)));
+    }
+
+    #[test]
+    fn import_rom_rejects_files_with_patch_magic() {
+        let dir = TempDir::new().unwrap();
+        let root = dir.path().join("lib");
+
+        // Real IPS magic header followed by an EOF marker.
+        let mut ips = b"PATCH".to_vec();
+        ips.extend_from_slice(b"EOF");
+        let p = write_tmp(dir.path(), "hack.ips", &ips);
+
+        let err = import_rom(&root, &p, None).unwrap_err();
+        match err {
+            GuiError::Library(msg) => {
+                assert!(msg.contains("IPS"), "error should name the format: {msg}");
+                assert!(msg.contains("patch"), "error should call it a patch: {msg}");
+            }
+            _ => panic!("expected GuiError::Library, got {err:?}"),
+        }
+        // Reject means we never created the index.
+        assert!(!index_path(&root).exists());
+    }
+
+    #[test]
+    fn import_rom_accepts_files_without_patch_magic() {
+        let dir = TempDir::new().unwrap();
+        let root = dir.path().join("lib");
+        let p = write_tmp(dir.path(), "rom.bin", b"\x00\x01\x02\x03not a patch");
+        let entry = import_rom(&root, &p, None).unwrap();
+        assert_eq!(entry.rom_name, "rom.bin");
     }
 
     #[test]
