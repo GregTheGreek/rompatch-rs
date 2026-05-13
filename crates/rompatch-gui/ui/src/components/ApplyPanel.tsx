@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
+import { desktopDir } from '@tauri-apps/api/path';
 import { AdvancedSection } from './AdvancedSection';
 import { ApplyTile } from './ApplyTile';
 import type { ApplyState } from './ApplyTile';
 import { Badge } from './Badge';
 import { DropTile } from './DropTile';
+import { RomSourceMenu } from './RomSourceMenu';
 import { useToast } from './Toast';
 import { cn } from '../lib/cn';
 import { formatIpcError } from '../lib/errors';
@@ -19,7 +21,10 @@ import {
   defaultOutputPath,
   detectPatchFormat,
   detectRomHeader,
+  libraryRecord,
+  libraryRomPath,
   pickDirectory,
+  pickFile,
 } from '../lib/tauri';
 import {
   CHECKSUM_FAMILY_DISPLAY,
@@ -33,6 +38,7 @@ import type {
   HashAlgo,
   HashSpec,
   HeaderKind,
+  LibraryRomEntry,
 } from '../lib/types';
 
 function basename(path: string): string {
@@ -51,10 +57,20 @@ function joinPath(dir: string, name: string): string {
   return dir.endsWith(sep) ? dir + name : dir + sep + name;
 }
 
+// Mirror of `rompatch_core::apply::default_output_path` for the case where
+// we only have a filename (not a full path). Preserves the original ROM's
+// extension so the patched output stays emulator-playable.
+function deriveOutputName(romName: string): string {
+  const dot = romName.lastIndexOf('.');
+  if (dot <= 0) return `${romName}.patched`;
+  return `${romName.slice(0, dot)}.patched${romName.slice(dot)}`;
+}
+
 export function ApplyPanel() {
   const { toast } = useToast();
 
   const [romPath, setRomPath] = useState<string | null>(null);
+  const [romDisplayName, setRomDisplayName] = useState<string | null>(null);
   const [patchPath, setPatchPath] = useState<string | null>(null);
   const [outPath, setOutPath] = useState<string | null>(null);
 
@@ -129,22 +145,28 @@ export function ApplyPanel() {
           variant: 'error',
         });
       });
-    defaultOutputPath(romPath)
-      .then((v) => {
-        if (!cancelled) setOutPath(v);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        toast({
-          title: 'Could not compute output path',
-          description: formatIpcError(err),
-          variant: 'error',
+    // Skip the default-output-path autosuggest when the ROM came from the
+    // library: `romPath` is then `<library>/roms/<hash>.bin`, and the IPC
+    // would suggest `<hash>.patched.bin` - opaque to emulators.
+    // handleRomFromLibrary sets a proper playable path explicitly.
+    if (romDisplayName === null) {
+      defaultOutputPath(romPath)
+        .then((v) => {
+          if (!cancelled) setOutPath(v);
+        })
+        .catch((err) => {
+          if (cancelled) return;
+          toast({
+            title: 'Could not compute output path',
+            description: formatIpcError(err),
+            variant: 'error',
+          });
         });
-      });
+    }
     return () => {
       cancelled = true;
     };
-  }, [romPath, toast]);
+  }, [romPath, romDisplayName, toast]);
 
   const filesReady = romPath !== null && patchPath !== null && outPath !== null;
 
@@ -196,6 +218,25 @@ export function ApplyPanel() {
       successTimer.current = window.setTimeout(() => {
         setLastReport(null);
       }, 4000);
+      // Auto-import into the local library. Failure here must not turn the
+      // apply into an error - the user's file is still on disk.
+      try {
+        await libraryRecord({
+          source_path: romPath,
+          patch_path: patchPath,
+          output_path: outPath,
+          format: report.format,
+          header: report.stripped_header,
+          fixed_checksum: report.fixed_checksum,
+          apply_options: options,
+        });
+      } catch (libErr) {
+        toast({
+          title: 'Library import skipped',
+          description: formatIpcError(libErr),
+          variant: 'warning',
+        });
+      }
     } catch (err) {
       const message = formatIpcError(err);
       setLastError(message);
@@ -206,6 +247,49 @@ export function ApplyPanel() {
       });
     } finally {
       setRunning(false);
+    }
+  }
+
+  // ROM came from a file picker or drag-drop: real on-disk path, no library
+  // entry tied to it. Clear any prior library display name.
+  function handleRomFromTile(path: string | null) {
+    setRomPath(path);
+    setRomDisplayName(null);
+  }
+
+  async function handleImportRomViaDialog() {
+    try {
+      const picked = await pickFile('Select ROM file');
+      if (picked) handleRomFromTile(picked);
+    } catch (err) {
+      toast({
+        title: 'Failed to open file dialog',
+        description: String(err),
+        variant: 'error',
+      });
+    }
+  }
+
+  // ROM came from the library picker: use the content-addressed path but
+  // surface the friendly name in the pill / tooltip. Manually set outPath to
+  // `<Desktop>/<rom_name>.patched.<ext>` so the patched output stays
+  // emulator-playable - the auto-suggest would otherwise produce
+  // `<hash>.patched.bin` from the content-addressed source path.
+  async function handleRomFromLibrary(entry: LibraryRomEntry) {
+    try {
+      const [path, desktop] = await Promise.all([
+        libraryRomPath(entry.rom_hash),
+        desktopDir(),
+      ]);
+      setRomPath(path);
+      setRomDisplayName(entry.rom_name);
+      setOutPath(joinPath(desktop, deriveOutputName(entry.rom_name)));
+    } catch (err) {
+      toast({
+        title: 'Could not load library ROM',
+        description: formatIpcError(err),
+        variant: 'error',
+      });
     }
   }
 
@@ -270,18 +354,26 @@ export function ApplyPanel() {
       >
         <div className="flex flex-col gap-8 max-w-2xl w-full px-6">
           <div className="flex items-start gap-2 w-full">
-        <DropTile
-          label="ROM"
-          filledLabel="Select ROM"
-          icon={<PlusCircleIcon size={56} strokeWidth={1.5} />}
-          value={romPath}
-          onChange={setRomPath}
-          dialogTitle="Select ROM file"
-          badge={
-            detectedHeader ? (
-              <Badge tone="neutral">{HEADER_DISPLAY[detectedHeader]} header</Badge>
-            ) : null
-          }
+        <RomSourceMenu
+          onImport={handleImportRomViaDialog}
+          onPickLibrary={handleRomFromLibrary}
+          trigger={({ onClick }) => (
+            <DropTile
+              label="ROM"
+              filledLabel="Select ROM"
+              icon={<PlusCircleIcon size={56} strokeWidth={1.5} />}
+              value={romPath}
+              displayName={romDisplayName}
+              onChange={handleRomFromTile}
+              onPick={onClick}
+              dialogTitle="Select ROM file"
+              badge={
+                detectedHeader ? (
+                  <Badge tone="neutral">{HEADER_DISPLAY[detectedHeader]} header</Badge>
+                ) : null
+              }
+            />
+          )}
         />
         <Connector lit={romPath !== null} />
         <DropTile

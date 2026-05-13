@@ -10,7 +10,12 @@ import type {
   FormatKind,
   HashReport,
   HeaderKind,
+  LibraryEntry,
+  LibraryRecordArgs,
+  LibraryRomEntry,
   PatchInfo,
+  RevealTarget,
+  VerifyStatus,
 } from './types';
 
 export async function detectPatchFormat(patchPath: string): Promise<FormatKind | null> {
@@ -80,4 +85,67 @@ export async function pickDirectory(
     title: title ?? 'Select folder',
   });
   return typeof result === 'string' ? result : null;
+}
+
+// ---------- library ----------
+
+export async function libraryRoot(): Promise<string> {
+  return invoke<string>('library_root');
+}
+
+export async function librarySetRoot(newRoot: string): Promise<string> {
+  return invoke<string>('library_set_root', { newRoot });
+}
+
+export async function libraryList(): Promise<LibraryEntry[]> {
+  return invoke<LibraryEntry[]>('library_list');
+}
+
+export async function libraryListRoms(): Promise<LibraryRomEntry[]> {
+  return invoke<LibraryRomEntry[]>('library_list_roms');
+}
+
+export async function libraryImportRom(romPath: string): Promise<LibraryRomEntry> {
+  return invoke<LibraryRomEntry>('library_import_rom', { romPath });
+}
+
+export async function libraryRomPath(romHash: string): Promise<string> {
+  return invoke<string>('library_rom_path', { romHash });
+}
+
+export async function libraryRecord(args: LibraryRecordArgs): Promise<LibraryEntry> {
+  return invoke<LibraryEntry>('library_record', { args });
+}
+
+export async function libraryVerify(entryId: string): Promise<VerifyStatus> {
+  return invoke<VerifyStatus>('library_verify', { entryId });
+}
+
+export async function libraryReapply(entryId: string): Promise<VerifyStatus> {
+  return invoke<VerifyStatus>('library_reapply', { entryId });
+}
+
+export async function libraryReveal(
+  entryId: string,
+  target: RevealTarget,
+): Promise<void> {
+  return invoke<void>('library_reveal', { entryId, target });
+}
+
+export async function libraryDeleteEntry(entryId: string): Promise<void> {
+  return invoke<void>('library_delete_entry', { entryId });
+}
+
+export async function libraryDeleteRom(romHash: string): Promise<void> {
+  return invoke<void>('library_delete_rom', { romHash });
+}
+
+export async function libraryExport(entryId: string, destPath: string): Promise<void> {
+  return invoke<void>('library_export', { entryId, destPath });
+}
+
+export async function libraryLookupByPatchHash(
+  patchPath: string,
+): Promise<LibraryEntry[]> {
+  return invoke<LibraryEntry[]>('library_lookup_by_patch_hash', { patchPath });
 }

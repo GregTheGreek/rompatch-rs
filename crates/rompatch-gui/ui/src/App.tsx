@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ApplyPanel } from './components/ApplyPanel';
-import { HomePage } from './components/HomePage';
+import { LibraryPage } from './components/LibraryPage';
 import { Sidebar } from './components/Sidebar';
 import type { Page } from './components/Sidebar';
 import { SidebarToggle } from './components/SidebarToggle';
@@ -39,7 +39,7 @@ function useWindowDrag() {
 
 export function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [page, setPage] = useState<Page>('patch');
+  const [page, setPage] = useState<Page>('library');
 
   useWindowDrag();
 
@@ -57,7 +57,7 @@ export function App() {
         />
         <main className="flex-1 flex flex-col overflow-hidden relative">
           <div data-tauri-drag-region className="h-12 shrink-0" />
-          {page === 'home' ? <HomePage /> : <ApplyPanel />}
+          {page === 'library' ? <LibraryPage /> : <ApplyPanel />}
         </main>
       </div>
     </ToastProvider>
