@@ -322,7 +322,13 @@ pub fn record(input: RecordInput<'_>) -> GuiResult<LibraryEntry> {
     let patch_ext = extension_of(patch_path);
 
     import_file(root, ROMS_DIR, source_path, &source_hash, None)?;
-    import_file(root, PATCHES_DIR, patch_path, &patch_hash, patch_ext.as_deref())?;
+    import_file(
+        root,
+        PATCHES_DIR,
+        patch_path,
+        &patch_hash,
+        patch_ext.as_deref(),
+    )?;
     import_file(root, OUTPUTS_DIR, output_path, &output_hash, None)?;
 
     let mut index = load_index(root)?;
@@ -454,7 +460,6 @@ pub fn import_rom(
     Ok(entry)
 }
 
-
 pub fn entry_paths(root: &Path, entry: &LibraryEntry) -> (PathBuf, PathBuf, PathBuf) {
     let patch_ext = extension_of(Path::new(&entry.patch_name));
     (
@@ -575,7 +580,9 @@ pub fn reveal_in_finder(path: &Path) -> GuiResult<()> {
 #[cfg(target_os = "windows")]
 pub fn reveal_in_finder(path: &Path) -> GuiResult<()> {
     if let Some(parent) = path.parent() {
-        std::process::Command::new("explorer").arg(parent).status()?;
+        std::process::Command::new("explorer")
+            .arg(parent)
+            .status()?;
     }
     Ok(())
 }
@@ -583,7 +590,9 @@ pub fn reveal_in_finder(path: &Path) -> GuiResult<()> {
 #[cfg(all(not(target_os = "macos"), not(target_os = "windows")))]
 pub fn reveal_in_finder(path: &Path) -> GuiResult<()> {
     if let Some(parent) = path.parent() {
-        std::process::Command::new("xdg-open").arg(parent).status()?;
+        std::process::Command::new("xdg-open")
+            .arg(parent)
+            .status()?;
     }
     Ok(())
 }
@@ -819,8 +828,7 @@ mod tests {
         let (source_a, patch_a_dest, output_a_dest) = entry_paths(&root, &entry_a);
         assert!(patch_a_dest.exists());
         assert!(output_a_dest.exists());
-        let shared_patch_path =
-            content_path(&root, PATCHES_DIR, &shared_patch_hash, Some("ips"));
+        let shared_patch_path = content_path(&root, PATCHES_DIR, &shared_patch_hash, Some("ips"));
         assert!(shared_patch_path.exists());
 
         // Deleting entry_a removes its orphan patch + output, but the source
@@ -1010,20 +1018,30 @@ mod tests {
         assert_eq!(entry_a.patch_hash, entry_b.patch_hash);
 
         let (source_a_path, _, output_a_path) = entry_paths(&root, &entry_a);
-        let shared_patch_path =
-            content_path(&root, PATCHES_DIR, &entry_a.patch_hash, Some("ips"));
+        let shared_patch_path = content_path(&root, PATCHES_DIR, &entry_a.patch_hash, Some("ips"));
         let source_b_path = content_path(&root, ROMS_DIR, &entry_b.source_rom_hash, None);
 
         delete_rom(&root, &entry_a.source_rom_hash).unwrap();
 
         let post = load_index(&root).unwrap();
-        assert!(post.roms.iter().all(|r| r.rom_hash != entry_a.source_rom_hash));
+        assert!(post
+            .roms
+            .iter()
+            .all(|r| r.rom_hash != entry_a.source_rom_hash));
         assert!(post.entries.iter().all(|e| e.id != entry_a.id));
-        assert!(post.entries.iter().any(|e| e.id == entry_b.id),
-            "unrelated ROM B's entry must survive");
+        assert!(
+            post.entries.iter().any(|e| e.id == entry_b.id),
+            "unrelated ROM B's entry must survive"
+        );
         assert!(!source_a_path.exists(), "deleted ROM file should be gone");
-        assert!(!output_a_path.exists(), "cascaded orphan output should be gone");
-        assert!(shared_patch_path.exists(), "patch blob shared with ROM B must remain");
+        assert!(
+            !output_a_path.exists(),
+            "cascaded orphan output should be gone"
+        );
+        assert!(
+            shared_patch_path.exists(),
+            "patch blob shared with ROM B must remain"
+        );
         assert!(source_b_path.exists(), "ROM B file must be untouched");
     }
 
@@ -1067,7 +1085,10 @@ mod tests {
         assert_eq!(format_unix_seconds_utc(0), "1970-01-01T00:00:00Z");
         assert_eq!(format_unix_seconds_utc(86_400), "1970-01-02T00:00:00Z");
         // 2024-01-01 00:00:00 UTC
-        assert_eq!(format_unix_seconds_utc(1_704_067_200), "2024-01-01T00:00:00Z");
+        assert_eq!(
+            format_unix_seconds_utc(1_704_067_200),
+            "2024-01-01T00:00:00Z"
+        );
         // 2024-02-29 (leap day) 12:34:56 UTC
         assert_eq!(
             format_unix_seconds_utc(1_709_210_096),

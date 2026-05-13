@@ -139,10 +139,7 @@ pub fn library_list_roms(app: AppHandle) -> GuiResult<Vec<LibraryRomEntry>> {
 }
 
 #[tauri::command]
-pub fn library_import_rom(
-    app: AppHandle,
-    rom_path: PathBuf,
-) -> GuiResult<LibraryRomEntry> {
+pub fn library_import_rom(app: AppHandle, rom_path: PathBuf) -> GuiResult<LibraryRomEntry> {
     let root = resolve_root(&app)?;
     let bytes = std::fs::read(&rom_path)?;
     let header = rompatch_core::header::detect(&bytes);
@@ -194,11 +191,7 @@ pub fn library_reapply(app: AppHandle, entry_id: String) -> GuiResult<VerifyStat
 }
 
 #[tauri::command]
-pub fn library_reveal(
-    app: AppHandle,
-    entry_id: String,
-    target: RevealTarget,
-) -> GuiResult<()> {
+pub fn library_reveal(app: AppHandle, entry_id: String, target: RevealTarget) -> GuiResult<()> {
     let root = resolve_root(&app)?;
     let path = library::reveal_path(&root, &entry_id, target)?;
     if !path.exists() {
