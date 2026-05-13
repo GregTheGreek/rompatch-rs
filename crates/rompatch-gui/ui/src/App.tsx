@@ -39,7 +39,7 @@ function useWindowDrag() {
 
 export function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [page, setPage] = useState<Page>('patch');
+  const [page, setPage] = useState<Page>('library');
 
   useWindowDrag();
 
