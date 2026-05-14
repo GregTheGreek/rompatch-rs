@@ -71,6 +71,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: gui
+          # dtolnay/rust-toolchain manages ~/.cargo/bin; letting rust-cache
+          # restore a stale bin dir from a prior run clobbers the freshly
+          # installed proxies and `cargo` ends up invoking rustup-init.
+          cache-bin: "false"
       - name: install frontend deps
         run: pnpm install --frozen-lockfile
         working-directory: crates/rompatch-gui/ui

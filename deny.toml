@@ -26,6 +26,9 @@ allow = [
     "Zlib",
     "0BSD",
     "MPL-2.0",
+    # Mozilla's webpki-root-certs bundle is CDLA-Permissive-2.0. Pulled in
+    # transitively by tauri-plugin-updater -> reqwest -> rustls-platform-verifier.
+    "CDLA-Permissive-2.0",
 ]
 confidence-threshold = 0.93
 
