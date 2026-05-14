@@ -63,5 +63,12 @@ export function useUpdater() {
     }
   }
 
-  return { status, install };
+  function dismiss() {
+    // Stays dismissed for this process lifetime. The check only runs in the
+    // mount effect, so on next app launch the popup will return if there
+    // is still an update available.
+    setStatus({ kind: 'idle' });
+  }
+
+  return { status, install, dismiss };
 }

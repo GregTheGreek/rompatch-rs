@@ -164,6 +164,12 @@ jobs:
           TARBALL=$(basename "$TARBALL_PATH")
           SIG=$(cat "$TARBALL_PATH.sig")
           URL="https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/${TARBALL}"
+          # Tauri's updater matches the manifest's `platforms` map against
+          # the running process's target triple (darwin-aarch64 on Apple
+          # Silicon, darwin-x86_64 on Intel) - "darwin-universal" alone is
+          # not enough, the lookup misses on real Macs. Emit all three keys
+          # pointing at the same universal .app.tar.gz so both architectures
+          # resolve and the universal fallback exists too.
           jq -n \
             --arg v "$VERSION" \
             --arg sig "$SIG" \
@@ -173,7 +179,11 @@ jobs:
               version: $v,
               notes: $notes,
               pub_date: (now | todate),
-              platforms: { "darwin-universal": { signature: $sig, url: $url } }
+              platforms: {
+                "darwin-aarch64":  { signature: $sig, url: $url },
+                "darwin-x86_64":   { signature: $sig, url: $url },
+                "darwin-universal":{ signature: $sig, url: $url }
+              }
             }' > latest.json
           cat latest.json
       # Sigstore-backed build provenance attestation. Free, transparency-
