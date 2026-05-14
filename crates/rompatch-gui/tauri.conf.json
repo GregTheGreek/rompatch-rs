@@ -43,7 +43,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "REPLACE_WITH_TAURI_UPDATER_PUBLIC_KEY",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEI0NDE0M0I1MDY2NzI2RjgKUldUNEptY0d0VU5CdEJXVDVRRzlwZUUxYW9JNkJHZDJzdngzMkd3bkdFNFRuM0VQN3g1S2dycDYK",
       "endpoints": [
         "https://github.com/GregTheGreek/rompatch-rs/releases/latest/download/latest.json"
       ]
