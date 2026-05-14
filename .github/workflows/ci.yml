@@ -248,10 +248,12 @@ jobs:
           path: lcov.info
 
   fuzz:
-    name: fuzz smoke (60s per target)
-    # Fuzz is expensive (~10 minutes for 10 targets x 60s) and rarely
-    # surfaces regressions that block a PR. Run only on pushes to main
-    # so PR cycle time stays short; main still gets the post-merge sweep.
+    name: fuzz smoke (15s per target)
+    # Fuzz is gated to main pushes to keep PR cycle time short, and each
+    # target runs for 15s instead of 60s so post-merge runs finish in
+    # ~3 min instead of ~10. Smoke runs catch crashes from the existing
+    # seed corpus; longer campaigns are better done locally or on a
+    # dedicated schedule when needed.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
@@ -274,7 +276,7 @@ jobs:
             echo "$targets"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
-      - name: run each target for 60s
+      - name: run each target for 15s
         env:
           TARGETS: ${{ steps.targets.outputs.targets }}
         run: |
@@ -282,6 +284,6 @@ jobs:
           while IFS= read -r t; do
             [ -z "$t" ] && continue
             echo "::group::fuzz $t"
-            cargo +nightly fuzz run --fuzz-dir fuzz --target x86_64-unknown-linux-gnu "$t" -- -max_total_time=60
+            cargo +nightly fuzz run --fuzz-dir fuzz --target x86_64-unknown-linux-gnu "$t" -- -max_total_time=15
             echo "::endgroup::"
           done <<< "$TARGETS"
