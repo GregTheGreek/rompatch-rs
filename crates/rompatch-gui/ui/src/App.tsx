@@ -6,6 +6,7 @@ import { Sidebar } from './components/Sidebar';
 import type { Page } from './components/Sidebar';
 import { SidebarToggle } from './components/SidebarToggle';
 import { ToastProvider } from './components/Toast';
+import { UpdateBanner } from './components/UpdateBanner';
 
 // Wire up window dragging for elements marked with data-tauri-drag-region.
 // Tauri ships a built-in handler, but it can miss elements that are nested
@@ -57,6 +58,7 @@ export function App() {
         />
         <main className="flex-1 flex flex-col overflow-hidden relative">
           <div data-tauri-drag-region className="h-12 shrink-0" />
+          <UpdateBanner />
           {page === 'library' ? <LibraryPage /> : <ApplyPanel />}
         </main>
       </div>
