@@ -1,8 +1,29 @@
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
+import { getVersion } from '@tauri-apps/api/app';
 import { cn } from '../lib/cn';
 import { DatabaseIcon, PackageIcon } from '../lib/icons';
 
 export type Page = 'library' | 'patch';
+
+function useAppVersion(): string | null {
+  const [version, setVersion] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    getVersion()
+      .then((v) => {
+        if (!cancelled) setVersion(v);
+      })
+      .catch(() => {
+        // Tauri API can fail in non-Tauri contexts (e.g. browser dev); stay
+        // silent and just don't render the footer.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return version;
+}
 
 interface SidebarProps {
   open: boolean;
@@ -11,6 +32,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ open, currentPage, onPageChange }: SidebarProps) {
+  const version = useAppVersion();
   return (
     <aside
       data-tauri-drag-region
@@ -54,6 +76,15 @@ export function Sidebar({ open, currentPage, onPageChange }: SidebarProps) {
           onClick={() => onPageChange('patch')}
         />
       </nav>
+
+      {version && (
+        <div
+          data-tauri-drag-region
+          className="mt-auto px-5 py-3 text-[11px] font-mono text-fg-subtle select-none"
+        >
+          v{version}
+        </div>
+      )}
     </aside>
   );
 }
