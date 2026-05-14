@@ -1,7 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "rompatch",
-  "version": "0.1.0",
   "identifier": "tech.gregmarkou.rompatch",
   "build": {
     "beforeDevCommand": "pnpm dev",
@@ -30,6 +29,7 @@
   "bundle": {
     "active": true,
     "targets": ["app", "dmg"],
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -39,6 +39,14 @@
     "macOS": {
       "minimumSystemVersion": "10.15",
       "entitlements": "./entitlements.plist"
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEI0NDE0M0I1MDY2NzI2RjgKUldUNEptY0d0VU5CdEJXVDVRRzlwZUUxYW9JNkJHZDJzdngzMkd3bkdFNFRuM0VQN3g1S2dycDYK",
+      "endpoints": [
+        "https://github.com/GregTheGreek/rompatch-rs/releases/latest/download/latest.json"
+      ]
     }
   }
 }
