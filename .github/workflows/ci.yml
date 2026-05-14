@@ -239,6 +239,10 @@ jobs:
 
   fuzz:
     name: fuzz smoke (60s per target)
+    # Fuzz is expensive (~10 minutes for 10 targets x 60s) and rarely
+    # surfaces regressions that block a PR. Run only on pushes to main
+    # so PR cycle time stays short; main still gets the post-merge sweep.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
