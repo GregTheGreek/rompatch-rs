@@ -11,7 +11,7 @@
   "app": {
     "windows": [
       {
-        "title": "rompatch",
+        "title": "Rom Library",
         "width": 900,
         "height": 680,
         "minWidth": 720,
