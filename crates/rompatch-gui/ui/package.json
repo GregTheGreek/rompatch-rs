@@ -1,6 +1,6 @@
 {
   "name": "rompatch-ui",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "React frontend for the rompatch native GUI",
   "private": true,
   "type": "module",
