@@ -30,7 +30,7 @@ export function Sidebar({ open, currentPage, onPageChange }: SidebarProps) {
           data-tauri-drag-region
           className="text-sm font-semibold text-fg tracking-tight"
         >
-          rompatch
+          Rom Library
         </div>
         <div
           data-tauri-drag-region

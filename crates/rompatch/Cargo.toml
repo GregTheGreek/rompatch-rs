@@ -11,7 +11,7 @@ name = "rompatch"
 path = "src/main.rs"
 
 [dependencies]
-rompatch-core = { path = "../rompatch-core", version = "0.2.0" }
+rompatch-core = { path = "../rompatch-core", version = "0.2.1" }
 lexopt = "0.3"
 
 [lints]
